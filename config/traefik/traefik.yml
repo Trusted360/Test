@@ -1,0 +1,47 @@
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: simmer-network
+
+certificatesResolvers:
+  default:
+    acme:
+      email: admin@simmer.home
+      storage: /etc/traefik/acme/acme.json
+      httpChallenge:
+        entryPoint: web
+
+log:
+  level: INFO
+
+accessLog: {}
+
+# Add custom domains configuration
+http:
+  routers:
+    api:
+      rule: "Host(`192.168.50.56`) && PathPrefix(`/api`)"
+      service: api
+      entryPoints:
+        - web
+    web:
+      rule: "Host(`192.168.50.56`)"
+      service: web
+      entryPoints:
+        - web
