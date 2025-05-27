@@ -1,7 +1,7 @@
 {
-  "name": "simmer-api",
+  "name": "trusted360-api",
   "version": "1.0.0",
-  "description": "Simmer API Service",
+  "description": "Trusted 360 API Service",
   "main": "src/index.js",
   "scripts": {
     "test": "jest",

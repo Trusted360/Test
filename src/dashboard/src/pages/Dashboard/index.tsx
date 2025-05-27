@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
             Welcome, {user?.name || 'Guest'}
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Here's what's cooking in your kitchen today
+            Your self-storage security overview
           </Typography>
         </Box>
 
@@ -30,10 +30,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
               <Typography variant="h6" gutterBottom>
-                Recent Recipes
+                Recent Audits
               </Typography>
               <Typography variant="body2">
-                You have no recent recipes. Start exploring our collection!
+                No recent audits completed. Start your first site audit today!
               </Typography>
             </StyledPaper>
           </Grid>
@@ -41,10 +41,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
               <Typography variant="h6" gutterBottom>
-                Upcoming Meals
+                Active Alerts
               </Typography>
               <Typography variant="body2">
-                No planned meals. Start planning your week!
+                No active alerts. All systems are operating normally.
               </Typography>
             </StyledPaper>
           </Grid>
@@ -52,10 +52,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
               <Typography variant="h6" gutterBottom>
-                Shopping List
+                Site Monitoring
               </Typography>
               <Typography variant="body2">
-                Your shopping list is empty. Add items to get started!
+                Monitor your facilities and edge devices from this central dashboard.
               </Typography>
             </StyledPaper>
           </Grid>
@@ -63,10 +63,10 @@ const Dashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
               <Typography variant="h6" gutterBottom>
-                Kitchen Tips
+                System Health
               </Typography>
               <Typography variant="body2">
-                Organize your pantry by food categories to make ingredients easier to find.
+                All edge devices are online and functioning properly.
               </Typography>
             </StyledPaper>
           </Grid>

@@ -125,7 +125,7 @@ services:
   # Web UI
   dashboard:
     build:
-      context: ./src/web
+      context: ./src/dashboard
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=/api

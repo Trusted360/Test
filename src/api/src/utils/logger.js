@@ -13,7 +13,7 @@ const logFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: config.logLevel,
   format: logFormat,
-  defaultMeta: { service: 'simmer-api' },
+  defaultMeta: { service: 'trusted360-api' },
   transports: [
     // Write logs with level 'error' and below to error.log
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),

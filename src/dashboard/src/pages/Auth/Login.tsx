@@ -86,7 +86,7 @@ const Login: React.FC = () => {
             Sign In
           </Typography>
           <Typography variant="subtitle1" align="center" color="text.secondary" mb={4}>
-            Welcome back to Simmer
+            Welcome back to Trusted 360
           </Typography>
 
           {error && (
@@ -98,11 +98,11 @@ const Login: React.FC = () => {
           <Alert severity="info" sx={{ mb: 3 }}>
             Demo accounts:
             <br />
-            - Admin: admin@example.com
+            - Admin: admin@trusted360.com
             <br />
-            - User: user@example.com
+            - User: user@trusted360.com
             <br />
-            (Any password will work for mock authentication)
+            Password: demo123
           </Alert>
 
           <Box component="form" onSubmit={handleSubmit} noValidate>

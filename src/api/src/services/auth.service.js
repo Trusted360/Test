@@ -547,7 +547,7 @@ class AuthService {
       // Generate secret
       const secret = speakeasy.generateSecret({
         length: 20,
-        name: `Simmer:${user.email}`
+        name: `Trusted360:${user.email}`
       });
       
       // Generate QR code

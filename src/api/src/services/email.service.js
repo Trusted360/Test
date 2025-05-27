@@ -21,8 +21,8 @@ class EmailService {
         }
       });
       
-      this.from = config.email.from || '"Simmer App" <noreply@simmer.app>';
-      this.baseUrl = config.baseUrl || 'http://simmer.home';
+          this.from = config.email.from || '"Trusted 360" <noreply@trusted360.com>';
+    this.baseUrl = config.baseUrl || 'http://trusted360.com';
       
       logger.info('Email service initialized');
     } else {
@@ -77,7 +77,7 @@ class EmailService {
     const text = `
 Hello ${name},
 
-Thank you for registering with Simmer. Please verify your email address by clicking the link below:
+Thank you for registering with Trusted 360. Please verify your email address by clicking the link below:
 
 ${verificationUrl}
 
@@ -86,7 +86,7 @@ This link will expire in 24 hours.
 If you did not create an account, you can safely ignore this email.
 
 Best regards,
-The Simmer Team
+The Trusted 360 Team
     `;
     
     const html = `
@@ -104,13 +104,13 @@ The Simmer Team
   <div class="container">
     <h2>Verify Your Email Address</h2>
     <p>Hello ${name},</p>
-    <p>Thank you for registering with Simmer. Please verify your email address by clicking the button below:</p>
+    <p>Thank you for registering with Trusted 360. Please verify your email address by clicking the button below:</p>
     <p><a href="${verificationUrl}" class="button">Verify Email</a></p>
     <p>Or copy and paste this link in your browser: <br>${verificationUrl}</p>
     <p>This link will expire in 24 hours.</p>
     <p>If you did not create an account, you can safely ignore this email.</p>
     <div class="footer">
-      <p>Best regards,<br>The Simmer Team</p>
+      <p>Best regards,<br>The Trusted 360 Team</p>
     </div>
   </div>
 </body>
@@ -144,7 +144,7 @@ This link will expire in 1 hour.
 If you did not request a password reset, you can safely ignore this email.
 
 Best regards,
-The Simmer Team
+The Trusted 360 Team
     `;
     
     const html = `
@@ -168,7 +168,7 @@ The Simmer Team
     <p>This link will expire in 1 hour.</p>
     <p>If you did not request a password reset, you can safely ignore this email.</p>
     <div class="footer">
-      <p>Best regards,<br>The Simmer Team</p>
+      <p>Best regards,<br>The Trusted 360 Team</p>
     </div>
   </div>
 </body>
@@ -193,7 +193,7 @@ The Simmer Team
     const text = `
 Hello ${name},
 
-We detected a new login to your Simmer account.
+We detected a new login to your Trusted 360 account.
 
 Time: ${time}
 IP Address: ${ipAddress}
@@ -205,7 +205,7 @@ If this was you, you can ignore this email.
 If you didn't log in at this time, please reset your password immediately.
 
 Best regards,
-The Simmer Team
+The Trusted 360 Team
     `;
     
     const html = `
@@ -225,7 +225,7 @@ The Simmer Team
   <div class="container">
     <h2>New Login to Your Account</h2>
     <p>Hello ${name},</p>
-    <p>We detected a new login to your Simmer account.</p>
+    <p>We detected a new login to your Trusted 360 account.</p>
     
     <div class="info">
       <p><strong>Time:</strong> ${time}</p>
@@ -242,7 +242,7 @@ The Simmer Team
     </div>
     
     <div class="footer">
-      <p>Best regards,<br>The Simmer Team</p>
+      <p>Best regards,<br>The Trusted 360 Team</p>
     </div>
   </div>
 </body>

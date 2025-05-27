@@ -1,98 +1,89 @@
 const express = require('express');
 const router = express.Router();
 const ollamaService = require('../services/ollama.service');
+const authMiddleware = require('../middleware/auth.middleware');
 const logger = require('../utils/logger');
-const { authMiddleware } = require('../middleware/auth');
 
 /**
- * @route GET /api/ollama/models
- * @description Get available Ollama models
+ * @route POST /api/ollama/generate-audit-checklist
+ * @description Generate an audit checklist using Ollama
  * @access Private
  */
-router.get('/models', authMiddleware, async (req, res, next) => {
+router.post('/generate-audit-checklist', authMiddleware, async (req, res, next) => {
   try {
-    const models = await ollamaService.getModels();
-    res.json(models);
+    const { facilityType, requirements, customItems } = req.body;
+    
+    if (!facilityType) {
+      return res.status(400).json({ 
+        error: 'Facility type is required' 
+      });
+    }
+
+    const checklist = await ollamaService.generateAuditChecklist(facilityType, requirements, customItems);
+    res.json(checklist);
   } catch (error) {
-    logger.error('Error fetching Ollama models:', error);
+    logger.error('Error generating audit checklist:', error);
     next(error);
   }
 });
 
 /**
- * @route POST /api/ollama/generate-meal-plan
- * @description Generate a meal plan using Ollama
+ * @route POST /api/ollama/analyze-incident
+ * @description Analyze a security incident using Ollama
  * @access Private
  */
-router.post('/generate-meal-plan', authMiddleware, async (req, res, next) => {
+router.post('/analyze-incident', authMiddleware, async (req, res, next) => {
   try {
-    const { householdId, days, preferences } = req.body;
+    const { incidentType, description, images, context } = req.body;
     
-    if (!householdId || !days) {
+    if (!incidentType || !description) {
       return res.status(400).json({ 
-        error: { 
-          message: 'Missing required parameters: householdId and days are required',
-          code: 'INVALID_REQUEST'
-        } 
+        error: 'Incident type and description are required' 
       });
     }
-    
-    const mealPlan = await ollamaService.generateMealPlan(householdId, days, preferences);
-    res.json(mealPlan);
+
+    const analysis = await ollamaService.analyzeIncident(incidentType, description, images, context);
+    res.json(analysis);
   } catch (error) {
-    logger.error('Error generating meal plan:', error);
+    logger.error('Error analyzing incident:', error);
     next(error);
   }
 });
 
 /**
- * @route POST /api/ollama/generate-recipe
- * @description Generate a recipe using Ollama
+ * @route POST /api/ollama/generate-report
+ * @description Generate a security report using Ollama
  * @access Private
  */
-router.post('/generate-recipe', authMiddleware, async (req, res, next) => {
+router.post('/generate-report', authMiddleware, async (req, res, next) => {
   try {
-    const { ingredients, preferences, mealType } = req.body;
+    const { reportType, data, timeframe } = req.body;
     
-    if (!ingredients || !ingredients.length) {
+    if (!reportType || !data) {
       return res.status(400).json({ 
-        error: { 
-          message: 'Missing required parameters: ingredients array is required',
-          code: 'INVALID_REQUEST'
-        } 
+        error: 'Report type and data are required' 
       });
     }
-    
-    const recipe = await ollamaService.generateRecipe(ingredients, preferences, mealType);
-    res.json(recipe);
+
+    const report = await ollamaService.generateReport(reportType, data, timeframe);
+    res.json(report);
   } catch (error) {
-    logger.error('Error generating recipe:', error);
+    logger.error('Error generating report:', error);
     next(error);
   }
 });
 
 /**
- * @route POST /api/ollama/analyze-dietary-preferences
- * @description Analyze dietary preferences from text
+ * @route GET /api/ollama/health
+ * @description Check Ollama service health
  * @access Private
  */
-router.post('/analyze-dietary-preferences', authMiddleware, async (req, res, next) => {
+router.get('/health', authMiddleware, async (req, res, next) => {
   try {
-    const { text } = req.body;
-    
-    if (!text) {
-      return res.status(400).json({ 
-        error: { 
-          message: 'Missing required parameters: text is required',
-          code: 'INVALID_REQUEST'
-        } 
-      });
-    }
-    
-    const preferences = await ollamaService.analyzeDietaryPreferences(text);
-    res.json(preferences);
+    const health = await ollamaService.checkHealth();
+    res.json(health);
   } catch (error) {
-    logger.error('Error analyzing dietary preferences:', error);
+    logger.error('Error checking Ollama health:', error);
     next(error);
   }
 });

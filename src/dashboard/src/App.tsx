@@ -11,18 +11,7 @@ const Dashboard = lazy(() => import('@pages/Dashboard'));
 const Login = lazy(() => import('@pages/Auth/Login'));
 const Register = lazy(() => import('@pages/Auth/Register'));
 const NotFound = lazy(() => import('@pages/NotFound'));
-// Pages for routes in the sidebar
-const Recipes = lazy(() => import('@pages/Recipes'));
-const Shopping = lazy(() => import('@pages/Shopping'));
-const Meals = lazy(() => import('@pages/Meals'));
 const Settings = lazy(() => import('@pages/Settings'));
-const Pantry = lazy(() => import('./pages/Pantry/PantryPage'));
-
-// Meal plan pages
-const MealPlanCreate = lazy(() => import('@pages/Meals/MealPlanCreate'));
-const MealPlanDetail = lazy(() => import('@pages/Meals/MealPlanDetail'));
-const MealPlanSubmit = lazy(() => import('@pages/Meals/MealPlanSubmit'));
-const MealPlanApproval = lazy(() => import('@pages/Meals/MealPlanApproval'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -76,80 +65,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          {/* Routes for the sidebar menu items */}
-          <Route
-            path="/recipes"
-            element={
-              <ProtectedRoute>
-                <Recipes />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/shopping"
-            element={
-              <ProtectedRoute>
-                <Shopping />
-              </ProtectedRoute>
-            }
-          />
-          {/* Meal plan routes */}
-          <Route
-            path="/meals"
-            element={
-              <ProtectedRoute>
-                <Meals />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/meals/create"
-            element={
-              <ProtectedRoute>
-                <MealPlanCreate />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/meals/:id"
-            element={
-              <ProtectedRoute>
-                <MealPlanDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/meals/:id/submit"
-            element={
-              <ProtectedRoute>
-                <MealPlanSubmit />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/meals/:id/approve"
-            element={
-              <ProtectedRoute>
-                <MealPlanApproval />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/meals/:id/approve/:version"
-            element={
-              <ProtectedRoute>
-                <MealPlanApproval />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/pantry"
-            element={
-              <ProtectedRoute>
-                <Pantry />
               </ProtectedRoute>
             }
           />

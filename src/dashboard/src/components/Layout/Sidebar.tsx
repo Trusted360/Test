@@ -13,12 +13,8 @@ import {
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
-  RestaurantMenu as RecipeIcon,
-  ShoppingCart as ShoppingIcon,
-  CalendarMonth as MealPlanIcon,
   Settings as SettingsIcon,
-  Logout as LogoutIcon,
-  Kitchen as PantryIcon
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -37,10 +33,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Recipes', icon: <RecipeIcon />, path: '/recipes' },
-    { text: 'Pantry', icon: <PantryIcon />, path: '/pantry' },
-    { text: 'Shopping List', icon: <ShoppingIcon />, path: '/shopping' },
-    { text: 'Meal Planning', icon: <MealPlanIcon />, path: '/meals' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 

@@ -98,7 +98,7 @@ const Register: React.FC = () => {
             Create Account
           </Typography>
           <Typography variant="subtitle1" align="center" color="text.secondary" mb={4}>
-            Join Simmer and start cooking
+            Join Trusted 360 and secure your facilities
           </Typography>
 
           {error && (

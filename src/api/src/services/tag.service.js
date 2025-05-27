@@ -1,11 +1,10 @@
-const { Tag, RecipeTag, Recipe } = require('../models');
+const { Tag } = require('../models');
 const logger = require('../utils/logger');
-const ollamaService = require('./ollama.service');
 const { redisClient } = require('./redis');
 
 /**
  * Tag service
- * Handles operations related to recipe tags
+ * Handles operations related to tags for facilities, audits, and alerts
  */
 class TagService {
   /**
@@ -169,22 +168,6 @@ class TagService {
   }
 
   /**
-   * Get tags for a recipe
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Tags
-   */
-  static async getTagsForRecipe(recipeId, tenantId) {
-    try {
-      const tags = await Tag.getByRecipeId(recipeId, tenantId);
-      return tags;
-    } catch (error) {
-      logger.error(`Error getting tags for recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Update a tag
    * @param {string} id - Tag ID
    * @param {Object} data - Tag data
@@ -243,143 +226,6 @@ class TagService {
       return success;
     } catch (error) {
       logger.error(`Error deleting tag ${id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add a tag to a recipe
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tagId - Tag ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Object>} Created recipe tag
-   */
-  static async addTagToRecipe(recipeId, tagId, tenantId) {
-    try {
-      // Check if recipe exists
-      const recipe = await Recipe.getById(recipeId, tenantId);
-      if (!recipe) {
-        throw new Error(`Recipe not found: ${recipeId}`);
-      }
-      
-      // Check if tag exists
-      const tag = await Tag.getById(tagId, tenantId);
-      if (!tag) {
-        throw new Error(`Tag not found: ${tagId}`);
-      }
-      
-      const recipeTag = await RecipeTag.create({
-        recipeId,
-        tagId,
-        tenantId
-      });
-      
-      // Invalidate cache
-      await this._invalidateRecipeTagCache(recipeId, tenantId);
-      
-      logger.info(`Added tag ${tagId} to recipe ${recipeId}`);
-      return {
-        ...recipeTag,
-        tag
-      };
-    } catch (error) {
-      logger.error(`Error adding tag ${tagId} to recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Remove a tag from a recipe
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tagId - Tag ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<boolean>} Success
-   */
-  static async removeTagFromRecipe(recipeId, tagId, tenantId) {
-    try {
-      const success = await RecipeTag.delete(recipeId, tagId, tenantId);
-      
-      if (!success) {
-        throw new Error(`Tag ${tagId} not found on recipe ${recipeId}`);
-      }
-      
-      // Invalidate cache
-      await this._invalidateRecipeTagCache(recipeId, tenantId);
-      
-      logger.info(`Removed tag ${tagId} from recipe ${recipeId}`);
-      return success;
-    } catch (error) {
-      logger.error(`Error removing tag ${tagId} from recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Set tags for a recipe (replace all existing tags)
-   * @param {string} recipeId - Recipe ID
-   * @param {Array} tagIds - Tag IDs
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Created recipe tags
-   */
-  static async setTagsForRecipe(recipeId, tagIds, tenantId) {
-    try {
-      // Check if recipe exists
-      const recipe = await Recipe.getById(recipeId, tenantId);
-      if (!recipe) {
-        throw new Error(`Recipe not found: ${recipeId}`);
-      }
-      
-      // Check if all tags exist
-      for (const tagId of tagIds) {
-        const tag = await Tag.getById(tagId, tenantId);
-        if (!tag) {
-          throw new Error(`Tag not found: ${tagId}`);
-        }
-      }
-      
-      const recipeTags = await RecipeTag.setTags(recipeId, tagIds, tenantId);
-      
-      // Invalidate cache
-      await this._invalidateRecipeTagCache(recipeId, tenantId);
-      
-      logger.info(`Set ${recipeTags.length} tags for recipe ${recipeId}`);
-      return recipeTags;
-    } catch (error) {
-      logger.error(`Error setting tags for recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get recipes with all specified tags
-   * @param {Array} tagIds - Tag IDs
-   * @param {Object} options - Query options
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Recipes
-   */
-  static async getRecipesWithAllTags(tagIds, options, tenantId) {
-    try {
-      const recipes = await RecipeTag.getRecipesWithAllTags(tagIds, options, tenantId);
-      return recipes;
-    } catch (error) {
-      logger.error('Error getting recipes with all tags:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get recipes with any of the specified tags
-   * @param {Array} tagIds - Tag IDs
-   * @param {Object} options - Query options
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Recipes
-   */
-  static async getRecipesWithAnyTags(tagIds, options, tenantId) {
-    try {
-      const recipes = await RecipeTag.getRecipesWithAnyTags(tagIds, options, tenantId);
-      return recipes;
-    } catch (error) {
-      logger.error('Error getting recipes with any tags:', error);
       throw error;
     }
   }
@@ -511,189 +357,37 @@ class TagService {
   }
 
   /**
-   * Generate tag suggestions for a recipe
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Tag suggestions
-   */
-  static async generateTagSuggestions(recipeId, tenantId) {
-    try {
-      // Check if recipe exists
-      const recipe = await Recipe.getById(recipeId, tenantId);
-      if (!recipe) {
-        throw new Error(`Recipe not found: ${recipeId}`);
-      }
-      
-      // In a real implementation, this would use AI to generate tag suggestions
-      // For now, use the placeholder implementation in the Tag model
-      const suggestions = await Tag.generateSuggestions(recipeId, tenantId);
-      
-      logger.info(`Generated ${suggestions.length} tag suggestions for recipe ${recipeId}`);
-      return suggestions;
-    } catch (error) {
-      logger.error(`Error generating tag suggestions for recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Generate tags using AI
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<Array>} Generated tags
-   */
-  static async generateTagsWithAI(recipeId, tenantId) {
-    try {
-      // Check if recipe exists
-      const recipe = await Recipe.getById(recipeId, tenantId);
-      if (!recipe) {
-        throw new Error(`Recipe not found: ${recipeId}`);
-      }
-      
-      // Get existing tag categories
-      const categories = await this.getTagCategories(tenantId);
-      
-      // Construct prompt for AI
-      const prompt = `
-        Analyze this recipe and generate appropriate tags for it. 
-        The tags should cover these categories: ${categories.join(', ')}
-        
-        Recipe Title: ${recipe.title}
-        Description: ${recipe.description || 'N/A'}
-        Ingredients: ${recipe.ingredients.map(i => i.ingredient.name).join(', ')}
-        Instructions: ${recipe.instructions}
-        
-        Return a JSON array of tag objects with these properties:
-        - name: The tag name (lowercase, simple terms)
-        - category: The category this tag belongs to
-        - description: A brief description of what this tag means
-        
-        Example response format:
-        [
-          {
-            "name": "italian",
-            "category": "cuisine",
-            "description": "Italian cuisine featuring traditional ingredients and techniques"
-          },
-          {
-            "name": "pasta",
-            "category": "dish_type",
-            "description": "Dishes primarily featuring pasta as the main component"
-          }
-        ]
-      `;
-      
-      // In a real implementation, this would call the Ollama service
-      // For now, return placeholder tags
-      const placeholderTags = [
-        {
-          name: "quick",
-          category: "cooking_time",
-          description: "Recipes that can be prepared in 30 minutes or less"
-        },
-        {
-          name: "easy",
-          category: "difficulty",
-          description: "Recipes suitable for beginners with simple techniques"
-        },
-        {
-          name: "dinner",
-          category: "meal_type",
-          description: "Recipes typically served as the main evening meal"
-        }
-      ];
-      
-      // Create tags that don't already exist
-      const createdTags = [];
-      for (const tagData of placeholderTags) {
-        // Check if tag already exists
-        let tag = await Tag.getByName(tagData.name, tenantId);
-        
-        if (!tag) {
-          // Create new tag
-          tag = await Tag.create({
-            name: tagData.name,
-            description: tagData.description,
-            category: tagData.category,
-            tenantId
-          });
-        }
-        
-        // Add tag to recipe if not already added
-        const existingTags = await Tag.getByRecipeId(recipeId, tenantId);
-        const tagExists = existingTags.some(t => t.id === tag.id);
-        
-        if (!tagExists) {
-          await RecipeTag.create({
-            recipeId,
-            tagId: tag.id,
-            tenantId
-          });
-        }
-        
-        createdTags.push(tag);
-      }
-      
-      // Invalidate cache
-      await this._invalidateRecipeTagCache(recipeId, tenantId);
-      
-      logger.info(`Generated ${createdTags.length} tags for recipe ${recipeId} using AI`);
-      return createdTags;
-    } catch (error) {
-      logger.error(`Error generating tags with AI for recipe ${recipeId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Invalidate tag cache
    * @param {string} tenantId - Tenant ID
-   * @returns {Promise<void>}
    * @private
    */
   static async _invalidateTagCache(tenantId) {
     try {
-      // Delete all cache keys related to tags
-      const patterns = [
-        `tags:${tenantId}:*`,
+      const keys = [
+        `tags:${tenantId}:all`,
         `tag-categories:${tenantId}`,
-        `popular-tags:${tenantId}:*`,
-        `related-tags:${tenantId}:*`,
-        `tag-stats:${tenantId}`,
-        `tag-hierarchy:${tenantId}`
+        `tag-hierarchy:${tenantId}`,
+        `tag-stats:${tenantId}`
       ];
       
-      // In a real implementation, this would use Redis SCAN and DEL commands
-      // For now, just log the operation
-      logger.debug(`Invalidated tag cache for patterns: ${patterns.join(', ')}`);
-    } catch (error) {
-      logger.error(`Error invalidating tag cache for tenant ${tenantId}:`, error);
-      // Non-critical error, don't throw
-    }
-  }
-
-  /**
-   * Invalidate recipe tag cache
-   * @param {string} recipeId - Recipe ID
-   * @param {string} tenantId - Tenant ID
-   * @returns {Promise<void>}
-   * @private
-   */
-  static async _invalidateRecipeTagCache(recipeId, tenantId) {
-    try {
-      // Delete all cache keys related to recipe tags
-      const patterns = [
-        `recipe-tags:${tenantId}:${recipeId}`,
-        `tag-stats:${tenantId}`,
-        `popular-tags:${tenantId}:*`
-      ];
+      // Get all category-specific cache keys
+      const categoryKeys = await redisClient.keys(`tags:${tenantId}:category:*`);
+      keys.push(...categoryKeys);
       
-      // In a real implementation, this would use Redis SCAN and DEL commands
-      // For now, just log the operation
-      logger.debug(`Invalidated recipe tag cache for patterns: ${patterns.join(', ')}`);
+      // Get all popular tag cache keys
+      const popularKeys = await redisClient.keys(`popular-tags:${tenantId}:*`);
+      keys.push(...popularKeys);
+      
+      // Get all related tag cache keys
+      const relatedKeys = await redisClient.keys(`related-tags:${tenantId}:*`);
+      keys.push(...relatedKeys);
+      
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        logger.debug(`Invalidated ${keys.length} tag cache keys for tenant ${tenantId}`);
+      }
     } catch (error) {
-      logger.error(`Error invalidating recipe tag cache for recipe ${recipeId}:`, error);
-      // Non-critical error, don't throw
+      logger.error('Error invalidating tag cache:', error);
     }
   }
 }

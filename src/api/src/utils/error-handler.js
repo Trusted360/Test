@@ -1,12 +1,12 @@
 /**
- * Error handling utilities for Simmer API
+ * Error handling utilities for Trusted 360 API
  */
 const logger = require('./logger');
 
 /**
  * Custom error classes
  */
-class SimmerError extends Error {
+class Trusted360Error extends Error {
   constructor(message, statusCode = 500, details = {}) {
     super(message);
     this.name = this.constructor.name;
@@ -16,7 +16,7 @@ class SimmerError extends Error {
   }
 }
 
-class OllamaApiError extends SimmerError {
+class OllamaApiError extends Trusted360Error {
   constructor(message, details = {}) {
     super(`Ollama API Error: ${message}`, 502, details);
     this.name = 'OllamaApiError';
@@ -130,7 +130,7 @@ function mapOllamaError(error) {
 
 module.exports = {
   // Error classes
-  SimmerError,
+  Trusted360Error,
   OllamaApiError,
   ModelNotFoundError,
   ModelInferenceError,
