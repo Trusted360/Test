@@ -24,8 +24,8 @@ async function setupDatabase() {
     await knexInstance.raw('SELECT 1');
     logger.info('Database connection established successfully');
     
-    // Run migrations in development or test mode
-    if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
+    // Run migrations in development or test mode if not disabled
+    if ((config.nodeEnv === 'development' || config.nodeEnv === 'test') && process.env.SKIP_MIGRATIONS !== 'true') {
       logger.info('Running migrations...');
       await knexInstance.migrate.latest();
       logger.info('Migrations completed');

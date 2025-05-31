@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../../../.env') });
 
 const config = {
   // Server configuration
@@ -42,7 +42,7 @@ const config = {
     secure: process.env.EMAIL_SECURE === 'true',
     user: process.env.EMAIL_USER,
     password: process.env.EMAIL_PASSWORD,
-    from: process.env.EMAIL_FROM || '"Simmer App" <noreply@simmer.app>'
+    from: process.env.EMAIL_FROM || '"Trusted 360 App" <noreply@trusted360.app>'
   },
   
   // Session configuration

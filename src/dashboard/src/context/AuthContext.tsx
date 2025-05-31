@@ -4,15 +4,16 @@ import api from '../services/api';
 
 // Define the user type
 interface User {
-  id: string;
+  id: number | string; // API returns number
   email: string;
-  name: string;
+  first_name?: string;
+  last_name?: string;
+  name?: string; // Computed from first_name + last_name
   role: string;
-  password?: string; // Optional password for registered users
-  member?: {
-    id: string;
-    name: string;
-  };
+  tenant_id?: string;
+  email_verified?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Define the auth context value type
@@ -65,8 +66,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
+      console.log('Attempting login with:', email); // Debug log
       const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data;
+      console.log('Login response:', response); // Debug log
+      
+      // Fix: API returns data nested in response.data.data
+      const { token, user: apiUser } = response.data.data || response.data;
+      
+      // Transform user to include name field
+      const user: User = {
+        ...apiUser,
+        name: `${apiUser.first_name || ''} ${apiUser.last_name || ''}`.trim() || apiUser.email
+      };
       
       // Save auth data in localStorage
       localStorage.setItem('token', token);
@@ -78,8 +89,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Navigate after state is updated
       navigate('/dashboard', { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
+      console.error('Error response:', error.response); // Debug log
       setLoading(false);
       throw error;
     }
@@ -89,8 +101,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (name: string, email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await api.post('/auth/register', { name, email, password });
-      const { token, user } = response.data;
+      // Split name into first and last name for API
+      const [firstName, ...lastNameParts] = name.split(' ');
+      const lastName = lastNameParts.join(' ');
+      
+      const response = await api.post('/auth/register', { 
+        email, 
+        password,
+        firstName: firstName || name,
+        lastName: lastName || ''
+      });
+      
+      // Fix: API returns data nested in response.data.data
+      const { token, user: apiUser } = response.data.data || response.data;
+      
+      // Transform user to include name field
+      const user: User = {
+        ...apiUser,
+        name: `${apiUser.first_name || ''} ${apiUser.last_name || ''}`.trim() || apiUser.email
+      };
       
       // Save auth data in localStorage
       localStorage.setItem('token', token);

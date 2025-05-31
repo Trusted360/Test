@@ -11,7 +11,7 @@ import { theme } from './theme';
 import { AuthProvider } from './context/AuthContext';
 
 // Add debug logs
-console.log('Starting Simmer application');
+console.log('Starting Trusted 360 application');
 console.log('API URL:', import.meta.env.VITE_API_URL);
 console.log('Apollo Client:', apolloClient);
 

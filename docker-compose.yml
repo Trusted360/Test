@@ -59,7 +59,6 @@ services:
       - ./config/traefik:/etc/traefik
     networks:
       - trusted360-network
-      - locallmserv_trapper-network
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -80,28 +79,23 @@ services:
         condition: service_healthy
     ports:
       - "3001:3000"
-    command: >
-      sh -c "
-        echo 'Waiting for PostgreSQL to be ready...' &&
-        cd /app && npm install && npm start
-      "
+    command: npm start
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://trusted360:trusted360_password@postgres:5432/trusted360
       REDIS_URL: redis://redis:6379
-      OLLAMA_URL: http://ollama-backend:11434
+      SKIP_MIGRATIONS: "true"
+      # OLLAMA_URL: http://ollama-backend:11434  # Commented out - was on external network
     volumes:
       - ./src/api/src:/app/src
       - ./src/api/package.json:/app/package.json
       - ./src/api/package-lock.json:/app/package-lock.json
       - ./src/api/knexfile.js:/app/knexfile.js
       - ./src/api/migrations:/app/migrations
-      - ./scripts/init-db.sh:/app/scripts/init-db.sh
       - /app/node_modules
       - recipe_images:/app/storage/images
     networks:
       - trusted360-network
-      - locallmserv_trapper-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "node"]
@@ -139,7 +133,6 @@ services:
       - NODE_ENV=production
     networks:
       - trusted360-network
-      - locallmserv_trapper-network
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -148,11 +141,7 @@ services:
       - "traefik.http.services.trusted360-web.loadbalancer.server.port=80"
 
 networks:
-  # Use the existing network from LOCALLMServ for integration with Ollama
-  locallmserv_trapper-network:
-    external: true
-    name: locallmserv_trapper-network
-  # Internal network for Simmer services
+  # Internal network for Trusted360 services
   trusted360-network:
     driver: bridge
 

@@ -24,6 +24,7 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('Form submitted'); // Debug log
     setError('');
     
     // Email validation
@@ -44,19 +45,24 @@ const Login: React.FC = () => {
       return;
     }
     
+    console.log('Validation passed, attempting login...'); // Debug log
     setIsLoading(true);
     
     try {
+      console.log('Calling login function with:', email); // Debug log
       await login(email, password);
+      console.log('Login successful!'); // Debug log
       // Navigation is handled in the auth context
     } catch (err: any) {
+      console.error('Login error in component:', err); // Debug log
       // Display a more user-friendly error
-      if (err.message === 'Invalid email or password') {
+      if (err.response?.data?.error?.message) {
+        setError(err.response.data.error.message);
+      } else if (err.message === 'Invalid email or password') {
         setError('Invalid email or password. Please try again.');
       } else {
         setError(`Login failed: ${err.message}`);
       }
-      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }

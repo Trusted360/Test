@@ -1,264 +1,327 @@
-# Trusted 360 - Development Setup Guide
+# Trusted 360 - Development Guide
 
-## Overview
+This guide provides detailed instructions for setting up and developing the Trusted 360 self-storage security platform.
 
-Trusted 360 is a self-storage security platform that provides audit management, facility monitoring, and edge device integration. This guide will help you set up the development environment and get the application running locally.
-
-## Architecture
-
-- **Frontend**: React + TypeScript + Material-UI (Vite)
-- **Backend**: Node.js + Express + PostgreSQL + Redis
-- **Authentication**: JWT-based with session management
-- **Database**: PostgreSQL with Knex.js migrations
-- **Caching**: Redis
-- **AI Integration**: Ollama (optional for development)
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Initial Setup](#initial-setup)
+- [Development Workflow](#development-workflow)
+- [Architecture Overview](#architecture-overview)
+- [Common Tasks](#common-tasks)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-- Node.js 18+ 
-- Docker & Docker Compose
-- Git
+### Required Software
+- **Docker Desktop** (latest version)
+- **Node.js** (v18 or higher)
+- **npm** (v8 or higher)
+- **Git**
+- **VS Code** (recommended) with extensions:
+  - ESLint
+  - Prettier
+  - TypeScript and JavaScript
+  - Docker
 
-## Quick Start
+### System Requirements
+- **RAM**: Minimum 8GB (16GB recommended)
+- **Storage**: At least 10GB free space
+- **OS**: macOS, Windows 10/11, or Linux
 
-### 1. Initial Setup
+## Initial Setup
 
+### 1. Clone the Repository
 ```bash
-# Clone and navigate to the project
+git clone [repository-url]
 cd trusted360
-
-# Run the setup script
-./setup-local-dev.sh
 ```
 
-This script will:
-- Create a `.env` file with development configuration
-- Install all dependencies for both API and Dashboard
-- Provide next steps for starting services
-
-### 2. Start Infrastructure Services
-
+### 2. Environment Configuration
 ```bash
-# Start database and Redis
-./start-dev.sh
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your configuration
+# Key variables are already set for local development
 ```
 
-This script will:
-- Start PostgreSQL and Redis containers
-- Run database migrations
-- Verify services are ready
-
-### 3. Start Application Services
-
-Open two terminal windows:
-
-**Terminal 1 - API Server:**
+### 3. Install Dependencies
 ```bash
+# API dependencies
 cd src/api
-npm run dev
+npm install
+
+# Dashboard dependencies  
+cd ../dashboard
+npm install
+
+# Return to project root
+cd ../..
 ```
 
-**Terminal 2 - Dashboard:**
+### 4. Start Infrastructure
+```bash
+# Start all Docker services
+docker-compose up -d
+
+# Verify services are running
+docker-compose ps
+```
+
+### 5. Database Setup
+The database is automatically initialized with the baseline schema. Demo accounts are pre-created:
+- **Admin**: admin@trusted360.com / demo123!
+- **User**: user@trusted360.com / demo123
+
+## Development Workflow
+
+### Starting Development
+
+1. **Start Infrastructure** (if not already running):
+```bash
+docker-compose up -d
+```
+
+2. **Start Dashboard Development Server**:
 ```bash
 cd src/dashboard
 npm run dev
 ```
 
-## Access Points
+3. **Access the Application**:
+- Dashboard: http://localhost:5173 ✅ (Use this for development)
+- API: http://localhost:3001
+- GraphQL Playground: http://localhost:3001/graphql
 
-- **Dashboard**: http://localhost:5173
-- **API**: http://localhost:3001
-- **API Health Check**: http://localhost:3001/api/health
-- **GraphQL Playground**: http://localhost:3001/graphql
+⚠️ **Important**: Always use port 5173 for development. Port 8088 is the production build and won't have hot reload or proper API proxying.
 
-## Demo Accounts
-
-For testing authentication:
-
-- **Admin**: admin@trusted360.com / demo123
-- **User**: user@trusted360.com / demo123
-
-## Project Structure
+### Code Structure
 
 ```
-trusted360/
-├── src/
-│   ├── api/                 # Backend API
-│   │   ├── src/
-│   │   │   ├── controllers/ # Route controllers
-│   │   │   ├── models/      # Database models
-│   │   │   ├── routes/      # API routes
-│   │   │   ├── services/    # Business logic
-│   │   │   └── middleware/  # Express middleware
-│   │   └── package.json
-│   └── dashboard/           # Frontend React app
-│       ├── src/
-│       │   ├── components/  # React components
-│       │   ├── pages/       # Page components
-│       │   ├── context/     # React context
-│       │   └── services/    # API services
-│       └── package.json
-├── database/
-│   └── migrations/          # Database migrations
-├── docker-compose.yml       # Infrastructure services
-└── README.md
+src/
+├── api/                    # Backend API
+│   ├── src/
+│   │   ├── controllers/   # HTTP request handlers
+│   │   ├── services/      # Business logic
+│   │   ├── models/        # Database models
+│   │   ├── routes/        # API routes
+│   │   └── middleware/    # Express middleware
+│   └── migrations/        # Database migrations
+│
+└── dashboard/             # Frontend React app
+    ├── src/
+    │   ├── pages/         # Page components
+    │   ├── components/    # Reusable components
+    │   ├── context/       # React contexts
+    │   ├── services/      # API client services
+    │   └── utils/         # Helper functions
+    └── public/            # Static assets
 ```
 
-## Available Scripts
+### Making Changes
 
-### API (src/api)
-- `npm run dev` - Start development server with hot reload
-- `npm start` - Start production server
-- `npm test` - Run tests
-- `npm run migrate` - Run database migrations
-- `npm run migrate:rollback` - Rollback last migration
+#### Frontend Development
+1. The Vite dev server provides hot module replacement
+2. Changes to React components update instantly
+3. TypeScript errors appear in the browser console
+4. Use Chrome DevTools for debugging
 
-### Dashboard (src/dashboard)
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run serve` - Preview production build
-- `npm test` - Run tests
-
-## Environment Variables
-
-The `.env` file contains all necessary configuration for local development:
-
-```env
-# Server Configuration
-NODE_ENV=development
-API_PORT=3000
-BASE_URL=http://localhost:3001
-
-# Database Configuration
-DATABASE_URL=postgres://trusted360:trusted360_password@localhost:5432/trusted360
-
-# Redis Configuration
-REDIS_URL=redis://localhost:6379
-
-# JWT Configuration
-JWT_SECRET=trusted360-development-secret-key-change-in-production
-JWT_EXPIRATION=24h
-
-# Session Configuration
-SESSION_SECRET=trusted360-session-secret-key-change-in-production
-SESSION_EXPIRATION_DAYS=14
-
-# CORS Configuration
-CORS_ORIGIN=http://localhost:5173,http://localhost:8088,http://localhost:3000
-```
-
-## Database
-
-### Migrations
-
-The application uses Knex.js for database migrations. Migrations are located in `database/migrations/`.
-
+#### Backend Development
+1. API changes require container restart:
 ```bash
-# Run all pending migrations
-cd src/api && npm run migrate
-
-# Check migration status
-cd src/api && npm run migrate:status
-
-# Rollback last migration
-cd src/api && npm run migrate:rollback
+docker-compose restart api
 ```
 
-### Schema
+2. View API logs:
+```bash
+docker-compose logs -f api
+```
 
-Key tables:
-- `users` - User accounts and authentication
-- `user_sessions` - Active user sessions
-- `user_activity` - User activity tracking
-- `two_factor_auth` - 2FA settings
-- `email_verification` - Email verification tokens
-- `password_reset` - Password reset tokens
+3. Test endpoints with curl or Postman:
+```bash
+curl http://localhost:3001/api/health
+```
 
-## API Endpoints
+#### Database Changes
+1. Create a new migration:
+```bash
+cd src/api
+npx knex migrate:make your_migration_name
+```
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/profile` - Get user profile
-- `PUT /api/auth/profile` - Update user profile
+2. Run migrations:
+```bash
+docker exec trusted360-api npx knex migrate:latest
+```
 
-### Health Checks
-- `GET /health` - Basic health check
-- `GET /api/health` - API health check
+3. Roll back migrations:
+```bash
+docker exec trusted360-api npx knex migrate:rollback
+```
 
-## Frontend Features
+### Authentication System
 
-### Current Pages
-- **Dashboard** - Security overview with audit status, alerts, site monitoring
-- **Settings** - Facility information and notification preferences
-- **Login/Register** - Authentication pages
+The authentication system is fully operational with:
+- Session-based authentication (not JWT despite some naming)
+- bcrypt password hashing
+- Database-backed sessions with expiration
+- Activity tracking for all auth events
+- Multi-tenant support via tenant_id
 
-### Components
-- **Layout** - Main application layout with navigation
-- **ProtectedRoute** - Route protection for authenticated users
-- **AuthContext** - Authentication state management
+Key files:
+- `src/api/src/services/auth.service.js` - Core auth logic
+- `src/dashboard/src/context/AuthContext.tsx` - Frontend auth state
+- `src/api/src/models/user.model.js` - User data access
 
-## Development Workflow
+## Architecture Overview
 
-1. **Start Infrastructure**: `./start-dev.sh`
-2. **Start API**: `cd src/api && npm run dev`
-3. **Start Dashboard**: `cd src/dashboard && npm run dev`
-4. **Make Changes**: Edit code with hot reload
-5. **Test**: Use demo accounts to test authentication
-6. **Database Changes**: Create migrations for schema changes
+### Technology Stack
+- **Frontend**: React 18, TypeScript, Material-UI, Vite
+- **Backend**: Node.js, Express, GraphQL (Apollo Server)
+- **Database**: PostgreSQL 16 with Knex.js
+- **Caching**: Redis 7
+- **Container**: Docker & Docker Compose
+- **Proxy**: Nginx (production), Vite proxy (development)
+
+### Key Design Decisions
+1. **Integer IDs** instead of UUIDs for simplicity
+2. **Session tokens** instead of JWT for better control
+3. **Multi-tenant** via tenant_id column (default: 'default')
+4. **Activity logging** for complete audit trail
+
+### API Structure
+- RESTful endpoints under `/api/*`
+- GraphQL endpoint at `/graphql`
+- Health check at `/api/health`
+- WebSocket support (planned)
+
+## Common Tasks
+
+### Adding a New API Endpoint
+1. Create controller method in `src/api/src/controllers/`
+2. Add service logic in `src/api/src/services/`
+3. Define route in `src/api/src/routes/`
+4. Update API documentation
+
+### Adding a New Page
+1. Create component in `src/dashboard/src/pages/`
+2. Add route in `src/dashboard/src/App.tsx`
+3. Update navigation if needed
+4. Wrap with ProtectedRoute for auth
+
+### Running Tests
+```bash
+# API tests
+cd src/api
+npm test
+
+# Dashboard tests
+cd src/dashboard
+npm test
+```
+
+### Building for Production
+```bash
+# Build dashboard
+cd src/dashboard
+npm run build
+
+# Build API
+cd src/api
+npm run build
+
+# Or use Docker
+docker-compose build
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Cannot Login / No Network Calls
+- **Solution**: Access http://localhost:5173, NOT http://localhost:8088
+- The dev server must be running: `cd src/dashboard && npm run dev`
 
-**Port Already in Use**
+### Port Already in Use
 ```bash
-# Kill processes on specific ports
-lsof -ti:3001 | xargs kill -9  # API port
-lsof -ti:5173 | xargs kill -9  # Dashboard port
+# Find process using port
+lsof -i :5173  # Mac/Linux
+netstat -ano | findstr :5173  # Windows
+
+# Kill process or change port in vite.config.ts
 ```
 
-**Database Connection Issues**
+### Database Connection Failed
+1. Check if PostgreSQL is running:
 ```bash
-# Restart database container
-docker-compose restart postgres
-
-# Check database logs
+docker-compose ps
 docker-compose logs postgres
 ```
 
-**Redis Connection Issues**
-```bash
-# Restart Redis container
-docker-compose restart redis
+2. Verify connection string in .env
 
-# Check Redis logs
-docker-compose logs redis
+3. Ensure no local PostgreSQL conflicts on port 5432
+
+### API Not Responding
+1. Check container status:
+```bash
+docker-compose ps
+docker logs trusted360-api
 ```
 
-**Migration Issues**
+2. Restart the service:
 ```bash
-# Check migration status
-cd src/api && npm run migrate:status
-
-# Reset database (WARNING: This will delete all data)
-docker-compose down -v
-docker-compose up postgres redis -d
-cd src/api && npm run migrate
+docker-compose restart api
 ```
 
-## Next Steps for Development
+### Migration Errors
+1. Check migration status:
+```bash
+docker exec trusted360-api npx knex migrate:status
+```
 
-With this baseline setup, you can now begin building:
+2. View migration history:
+```bash
+docker exec trusted360-postgres psql -U trusted360 -d trusted360 -c "SELECT * FROM knex_migrations;"
+```
 
-1. **Audit System** - Dynamic checklists, geo-stamped entries
-2. **Facility Management** - Site profiles, device monitoring
-3. **Alert System** - Real-time incident detection
-4. **Edge Device Integration** - Jetson Orin Nano monitoring
-5. **Reporting** - Security reports and analytics
-6. **Vision AI** - Camera feed analysis and incident detection
+### Hot Reload Not Working
+1. Ensure you're using the Vite dev server (port 5173)
+2. Check for TypeScript errors blocking compilation
+3. Try restarting the dev server
 
-## Support
+## Best Practices
 
-For development questions or issues, refer to the project documentation in the `artifacts/` directory or create an issue in the project repository. 
+### Code Style
+- Use TypeScript for type safety
+- Follow ESLint rules
+- Format with Prettier
+- Write meaningful commit messages
+
+### Security
+- Never commit secrets to git
+- Use environment variables
+- Validate all user input
+- Use parameterized queries
+
+### Performance
+- Optimize database queries
+- Use Redis for caching
+- Implement pagination
+- Lazy load components
+
+### Testing
+- Write unit tests for services
+- Test API endpoints
+- Use React Testing Library
+- Maintain >80% coverage
+
+## Resources
+
+- [Project Documentation](./artifacts/)
+- [API Documentation](http://localhost:3001/graphql)
+- [Material-UI Docs](https://mui.com/)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [Knex.js Guide](http://knexjs.org/)
+
+---
+
+**Need Help?** Check the troubleshooting section or refer to the architecture documentation in the artifacts folder. 

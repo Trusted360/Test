@@ -20,26 +20,24 @@ class UserActivity {
     try {
       const { userId, activityType, resourceType, resourceId, details, ipAddress, userAgent } = activityData;
       
-      const id = uuidv4();
       const now = new Date();
       
       const activity = {
-        id,
         user_id: userId,
-        tenant_id: tenantId,
+        tenant_id: tenantId || 'default',
         activity_type: activityType,
         resource_type: resourceType,
         resource_id: resourceId,
-        details: details || {},
+        details: details ? JSON.stringify(details) : null,
         ip_address: ipAddress,
         user_agent: userAgent,
         created_at: now,
         updated_at: now
       };
       
-      await this.db(this.tableName).insert(activity);
+      const [insertedId] = await this.db(this.tableName).insert(activity).returning('id');
       
-      return activity;
+      return { ...activity, id: insertedId };
     } catch (error) {
       logger.error(`Error logging user activity: ${error.message}`);
       

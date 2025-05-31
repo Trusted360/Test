@@ -1,0 +1,23 @@
+/**
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> }
+ */
+exports.up = function(knex) {
+  return knex.schema
+    .table('users', (table) => {
+      table.string('tenant_id', 50).notNullable().defaultTo('default');
+      table.index(['email', 'tenant_id']);
+    });
+};
+
+/**
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> }
+ */
+exports.down = function(knex) {
+  return knex.schema
+    .table('users', (table) => {
+      table.dropIndex(['email', 'tenant_id']);
+      table.dropColumn('tenant_id');
+    });
+}; 

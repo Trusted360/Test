@@ -81,14 +81,35 @@
 - `.env` configuration with secure defaults
 
 ### ✅ **Access Points**
-- **Dashboard**: http://localhost:5173
+- **Dashboard**: http://localhost:8088 (Docker Compose) or http://localhost:5173 (dev server)
 - **API**: http://localhost:3001
 - **Health Check**: http://localhost:3001/api/health
 - **GraphQL**: http://localhost:3001/graphql
+- **Traefik Dashboard**: http://localhost:8081
 
 ### ✅ **Demo Accounts**
 - **Admin**: admin@trusted360.com / demo123
 - **User**: user@trusted360.com / demo123
+
+---
+
+## 🔧 **Recent Fixes (May 31, 2024)**
+
+### ✅ **Docker Compose Issues Resolved**
+- Removed external network dependency (`locallmserv_trapper-network`)
+- Fixed nginx configuration (changed `simmer-api` to `api`)
+- Removed invalid mount for `init-db.sh` directory
+- Added `SKIP_MIGRATIONS=true` to prevent duplicate migration errors
+- Updated Vite config to use port 5173 (was conflicting with API on port 3000)
+
+### ✅ **Current Docker Services**
+| Service | Status | Port | Purpose |
+|---------|--------|------|---------|
+| trusted360-postgres | ✅ Healthy | 5432 | PostgreSQL database |
+| trusted360-redis | ✅ Healthy | 6379 | Redis cache |
+| trusted360-api | ✅ Healthy | 3001→3000 | Express API server |
+| trusted360-web | ✅ Running | 8088→80 | Nginx serving React app |
+| trusted360-traefik | ✅ Running | 8090,8443,8081 | Reverse proxy |
 
 ---
 

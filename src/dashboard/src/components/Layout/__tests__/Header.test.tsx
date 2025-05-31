@@ -27,7 +27,7 @@ describe('Header Component', () => {
       </BrowserRouter>
     );
     
-    expect(screen.getByText('Simmer')).toBeInTheDocument();
+    expect(screen.getByText('Trusted360')).toBeInTheDocument();
   });
 
   it('shows login and register buttons when user is not authenticated', () => {

@@ -6,7 +6,7 @@ module.exports = {
     connection: config.database.url,
     pool: config.database.pool,
     migrations: {
-      directory: '../../database/migrations'
+      directory: './migrations'
     }
   },
   test: {
@@ -14,7 +14,7 @@ module.exports = {
     connection: config.database.url,
     pool: config.database.pool,
     migrations: {
-      directory: '../../database/migrations'
+      directory: './migrations'
     }
   },
   production: {
@@ -22,7 +22,7 @@ module.exports = {
     connection: config.database.url,
     pool: config.database.pool,
     migrations: {
-      directory: '../../database/migrations'
+      directory: './migrations'
     }
   }
 }; 

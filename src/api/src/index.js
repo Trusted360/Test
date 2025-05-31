@@ -16,8 +16,6 @@ const { User } = require('./models');
 const Session = require('./models/session.model');
 const UserActivity = require('./models/user-activity.model');
 const AuthService = require('./services/auth.service');
-const CookingAssistantService = require('./services/cookingAssistant.service');
-const RecipeService = require('./services/recipe.service');
 const emailService = require('./services/email.service');
 
 // Initialize service instances
@@ -26,8 +24,6 @@ let userModel;
 let sessionModel;
 let userActivityModel;
 let authServiceInstance;
-let cookingAssistantServiceInstance;
-let recipeServiceInstance;
 
 // Initialize Express app
 const app = express();
@@ -37,7 +33,7 @@ app.use(helmet({
   contentSecurityPolicy: false // Disable CSP for development
 }));
 app.use(cors({
-  origin: ['http://localhost:8088', 'http://localhost:3000', 'http://localhost:5173', 'http://simmer.home'],
+  origin: ['http://localhost:8088', 'http://localhost:3000', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
   credentials: true,
@@ -77,15 +73,10 @@ function initializeServices(db) {
   
   authServiceInstance = AuthService.initialize(userModel, sessionModel, userActivityModel, emailService);
   
-  cookingAssistantServiceInstance = new CookingAssistantService(db);
-  recipeServiceInstance = new RecipeService(db);
-  
   logger.info('Services initialized');
   
   const services = {
     authService: authServiceInstance,
-    cookingAssistantService: cookingAssistantServiceInstance,
-    recipeService: recipeServiceInstance,
     // Make other models/services available if needed by other routes
     userModel,
     sessionModel,
@@ -106,9 +97,7 @@ app.use('/graphql', graphqlHTTP((req) => {
       tenantId: tenantId,
       user: req.user,
       services: {
-        authService: authServiceInstance,
-        cookingAssistantService: cookingAssistantServiceInstance,
-        recipeService: recipeServiceInstance
+        authService: authServiceInstance
       }
     },
     customFormatErrorFn: (err) => {

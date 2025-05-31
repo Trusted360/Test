@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ollamaService = require('../services/ollama.service');
-const authMiddleware = require('../middleware/auth.middleware');
+const { authenticateJWT } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 /**
@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
  * @description Generate an audit checklist using Ollama
  * @access Private
  */
-router.post('/generate-audit-checklist', authMiddleware, async (req, res, next) => {
+router.post('/generate-audit-checklist', authenticateJWT, async (req, res, next) => {
   try {
     const { facilityType, requirements, customItems } = req.body;
     
@@ -32,7 +32,7 @@ router.post('/generate-audit-checklist', authMiddleware, async (req, res, next) 
  * @description Analyze a security incident using Ollama
  * @access Private
  */
-router.post('/analyze-incident', authMiddleware, async (req, res, next) => {
+router.post('/analyze-incident', authenticateJWT, async (req, res, next) => {
   try {
     const { incidentType, description, images, context } = req.body;
     
@@ -55,7 +55,7 @@ router.post('/analyze-incident', authMiddleware, async (req, res, next) => {
  * @description Generate a security report using Ollama
  * @access Private
  */
-router.post('/generate-report', authMiddleware, async (req, res, next) => {
+router.post('/generate-report', authenticateJWT, async (req, res, next) => {
   try {
     const { reportType, data, timeframe } = req.body;
     
@@ -78,7 +78,7 @@ router.post('/generate-report', authMiddleware, async (req, res, next) => {
  * @description Check Ollama service health
  * @access Private
  */
-router.get('/health', authMiddleware, async (req, res, next) => {
+router.get('/health', authenticateJWT, async (req, res, next) => {
   try {
     const health = await ollamaService.checkHealth();
     res.json(health);

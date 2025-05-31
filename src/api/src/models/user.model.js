@@ -29,26 +29,28 @@ class User {
       const hashedPassword = await bcrypt.hash(password, salt);
       logger.info('[UserModel.create] Password hashed successfully.');
       
-      const id = uuidv4();
       const now = new Date();
       
-      // Simplified user object with only columns that exist in the database
+      // User object matching the actual database schema
       const user = {
-        id,
         email: email.toLowerCase(),
-        password_hash: hashedPassword,
+        password: hashedPassword, // Note: column is 'password' not 'password_hash'
         first_name: firstName,
         last_name: lastName,
-        tenant_id: tenantId,
+        tenant_id: tenantId || 'default',
         created_at: now,
         updated_at: now
       };
       
-      await this.db(this.tableName).insert(user);
+      const [insertedId] = await this.db(this.tableName).insert(user).returning('id');
+      
+      // Get the created user
+      const createdUser = await this.db(this.tableName)
+        .where({ id: insertedId })
+        .first();
       
       // Return user without password
-      const createdUser = { ...user };
-      delete createdUser.password_hash;
+      delete createdUser.password;
       return createdUser;
     } catch (error) {
       logger.error(`Error creating user: ${error.message}`);
@@ -65,7 +67,7 @@ class User {
   async findById(id, tenantId) {
     try {
       const user = await this.db(this.tableName)
-        .where({ id, tenant_id: tenantId })
+        .where({ id, tenant_id: tenantId || 'default' })
         .first();
         
       if (user) {
@@ -90,7 +92,7 @@ class User {
       return this.db(this.tableName)
         .where({ 
           email: email.toLowerCase(),
-          tenant_id: tenantId
+          tenant_id: tenantId || 'default'
         })
         .first();
     } catch (error) {
@@ -110,7 +112,7 @@ class User {
       return this.db(this.tableName)
         .where({ 
           reset_token: resetToken,
-          tenant_id: tenantId
+          tenant_id: tenantId || 'default'
         })
         .first();
     } catch (error) {
@@ -130,7 +132,7 @@ class User {
       return this.db(this.tableName)
         .where({ 
           email_verification_token: token,
-          tenant_id: tenantId
+          tenant_id: tenantId || 'default'
         })
         .first();
     } catch (error) {
@@ -147,7 +149,7 @@ class User {
    */
   async validatePassword(user, password) {
     try {
-      return bcrypt.compare(password, user.password_hash);
+      return bcrypt.compare(password, user.password); // Use 'password' not 'password_hash'
     } catch (error) {
       logger.error(`Error validating password: ${error.message}`);
       throw error;
@@ -168,12 +170,11 @@ class User {
       // If password is being updated, hash it
       if (updateData.password) {
         const salt = await bcrypt.genSalt(10);
-        updateData.password_hash = await bcrypt.hash(updateData.password, salt);
-        delete updateData.password; // Remove the password field
+        updateData.password = await bcrypt.hash(updateData.password, salt); // Store in 'password' column
       }
       
       await this.db(this.tableName)
-        .where({ id, tenant_id: tenantId })
+        .where({ id, tenant_id: tenantId || 'default' })
         .update(updateData);
         
       return this.findById(id, tenantId);
@@ -192,7 +193,7 @@ class User {
   async delete(id, tenantId) {
     try {
       return this.db(this.tableName)
-        .where({ id, tenant_id: tenantId })
+        .where({ id, tenant_id: tenantId || 'default' })
         .delete();
     } catch (error) {
       logger.error(`Error deleting user: ${error.message}`);
@@ -208,8 +209,8 @@ class User {
   async getAll(tenantId) {
     try {
       const users = await this.db(this.tableName)
-        .where({ tenant_id: tenantId })
-        .select('id', 'email', 'first_name', 'last_name', 'role', 'created_at', 'updated_at', 'last_login_at', 'email_verified', 'two_factor_enabled');
+        .where({ tenant_id: tenantId || 'default' })
+        .select('id', 'email', 'first_name', 'last_name', 'role', 'created_at', 'updated_at', 'email_verified');
       
       return users;
     } catch (error) {
@@ -221,7 +222,7 @@ class User {
   /**
    * Verify user email
    * @param {string} token - Email verification token
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {Object} Updated user
    */
   async verifyEmail(token, tenantId) {
@@ -252,7 +253,7 @@ class User {
   /**
    * Generate new email verification token
    * @param {string} userId - User ID
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {Object} User with new verification token
    */
   async generateEmailVerificationToken(userId, tenantId) {
@@ -276,7 +277,7 @@ class User {
    * Enable two-factor authentication
    * @param {string} userId - User ID
    * @param {string} secret - 2FA secret
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {Object} Updated user
    */
   async enableTwoFactor(userId, secret, tenantId) {
@@ -296,7 +297,7 @@ class User {
   /**
    * Disable two-factor authentication
    * @param {string} userId - User ID
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {Object} Updated user
    */
   async disableTwoFactor(userId, tenantId) {
@@ -316,7 +317,7 @@ class User {
   /**
    * Track failed login attempt
    * @param {string} email - User email
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {number} Current number of failed attempts
    */
   async trackFailedLoginAttempt(email, tenantId) {
@@ -343,7 +344,7 @@ class User {
   /**
    * Reset failed login attempts
    * @param {string} userId - User ID
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    */
   async resetFailedLoginAttempts(userId, tenantId) {
     try {
@@ -360,7 +361,7 @@ class User {
    * Track successful login
    * @param {string} userId - User ID
    * @param {string} ip - IP address
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    */
   async trackSuccessfulLogin(userId, ip, tenantId) {
     try {
@@ -378,7 +379,7 @@ class User {
    * Update user preferences
    * @param {string} userId - User ID
    * @param {Object} preferences - User preferences
-   * @param {string} tenantId - Tenant ID
+   * @param {string} tenantId - Tenant ID (ignored for now)
    * @returns {Object} Updated user
    */
   async updatePreferences(userId, preferences, tenantId) {
