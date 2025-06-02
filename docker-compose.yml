@@ -84,7 +84,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgres://trusted360:trusted360_password@postgres:5432/trusted360
       REDIS_URL: redis://redis:6379
-      SKIP_MIGRATIONS: "true"
+      SKIP_MIGRATIONS: "false"
       # OLLAMA_URL: http://ollama-backend:11434  # Commented out - was on external network
     volumes:
       - ./src/api/src:/app/src
