@@ -113,8 +113,8 @@ class AuthService {
     try {
       const { email, password, deviceInfo, ipAddress, userAgent } = loginData;
       
-      // Find user by email
-      const user = await this.userModel.findByEmail(email, tenantId);
+      // Find user by email (include password for validation)
+      const user = await this.userModel.findByEmail(email, tenantId, true);
       if (!user) {
         // Track failed login for security
         await this.trackFailedLogin(email, ipAddress, tenantId);
@@ -123,15 +123,22 @@ class AuthService {
 
       // Check if account is locked
       if (user.lock_until && new Date() < new Date(user.lock_until)) {
-        throw new Error('Account temporarily locked. Try again later.');
+        const lockTimeRemaining = Math.ceil((new Date(user.lock_until) - new Date()) / 1000 / 60);
+        throw new Error(`Account temporarily locked due to multiple failed login attempts. Please try again in ${lockTimeRemaining} minutes.`);
       }
 
       // Validate password
       const isValid = await this.userModel.validatePassword(user, password);
       if (!isValid) {
-        // Track failed login
-        await this.trackFailedLogin(email, ipAddress, tenantId);
-        throw new Error('Invalid credentials');
+        // Track failed login and get attempt count
+        const attemptInfo = await this.trackFailedLogin(email, ipAddress, tenantId);
+        
+        // Provide more specific error based on attempt count
+        if (attemptInfo && attemptInfo.attempts >= 3) {
+          throw new Error(`Invalid credentials. Account will be temporarily locked after ${5 - attemptInfo.attempts} more failed attempts.`);
+        } else {
+          throw new Error('Invalid credentials');
+        }
       }
 
       // Check if 2FA is enabled
@@ -210,6 +217,7 @@ class AuthService {
    * @param {string} email - Email
    * @param {string} ipAddress - IP address
    * @param {string} tenantId - Tenant ID
+   * @returns {Object} Attempt information
    */
   async trackFailedLogin(email, ipAddress, tenantId) {
     try {
@@ -217,9 +225,12 @@ class AuthService {
       
       // Log even if user doesn't exist for security monitoring
       logger.warn(`Failed login attempt for ${email} from ${ipAddress}. Attempts: ${attempts || 'N/A'}`);
+      
+      return { attempts: attempts || 1 };
     } catch (error) {
       logger.error(`Error tracking failed login: ${error.message}`);
       // Don't throw error to continue login flow
+      return { attempts: 1 };
     }
   }
 

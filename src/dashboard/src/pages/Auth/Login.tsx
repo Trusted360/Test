@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   Container, 
   Box, 
@@ -18,13 +18,46 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  
+  // Use refs to persist values across potential re-renders
+  const errorRef = useRef('');
+  const emailRef = useRef('');
+  const passwordRef = useRef('');
+  const isSettingErrorRef = useRef(false);
   
   const { login, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  
+  // Sync refs with state
+  useEffect(() => {
+    errorRef.current = error;
+    emailRef.current = email;
+    passwordRef.current = password;
+  }, [error, email, password]);
+  
+  // Restore state from refs if component was re-rendered during error setting
+  useEffect(() => {
+    if (isSettingErrorRef.current && !error && errorRef.current) {
+      console.log('Restoring error state from ref:', errorRef.current);
+      setError(errorRef.current);
+      isSettingErrorRef.current = false;
+    }
+    if (!email && emailRef.current) {
+      console.log('Restoring email from ref:', emailRef.current);
+      setEmail(emailRef.current);
+    }
+    if (!password && passwordRef.current) {
+      console.log('Restoring password from ref');
+      setPassword(passwordRef.current);
+    }
+  }, [forceUpdate, error, email, password]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log('Form submitted'); // Debug log
+    
+    // Clear any existing errors
     setError('');
     
     // Email validation
@@ -55,16 +88,48 @@ const Login: React.FC = () => {
       // Navigation is handled in the auth context
     } catch (err: any) {
       console.error('Login error in component:', err); // Debug log
-      // Display a more user-friendly error
-      if (err.response?.data?.error?.message) {
-        setError(err.response.data.error.message);
+      console.error('Error response data:', err.response?.data); // Debug log
+      
+      let errorMessage = 'Login failed. Please try again.';
+      
+      // Handle different error types based on error codes
+      if (err.response?.data?.error) {
+        const { message, code } = err.response.data.error;
+        console.log('Error code:', code, 'Message:', message); // Debug log
+        
+        switch (code) {
+          case 'INVALID_CREDENTIALS':
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+            break;
+          case 'INVALID_CREDENTIALS_WARNING':
+            errorMessage = message; // Show the specific warning about account lockout
+            break;
+          case 'ACCOUNT_LOCKED':
+            errorMessage = message; // Show the specific lockout message with time remaining
+            break;
+          default:
+            errorMessage = message || 'Login failed. Please try again.';
+        }
       } else if (err.message === 'Invalid email or password') {
-        setError('Invalid email or password. Please try again.');
+        errorMessage = 'Invalid email or password. Please try again.';
       } else {
-        setError(`Login failed: ${err.message}`);
+        errorMessage = `Login failed: ${err.message}`;
       }
-    } finally {
+      
+      console.log('Setting error message:', errorMessage); // Debug log
+      
+      // Set loading to false and show error with ref-based persistence
       setIsLoading(false);
+      isSettingErrorRef.current = true;
+      errorRef.current = errorMessage;
+      setError(errorMessage);
+      
+      // Force a re-render to trigger restoration logic if needed
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 50);
+      
+      console.log('Error state set:', errorMessage); // Debug log
     }
   };
 
@@ -122,7 +187,13 @@ const Login: React.FC = () => {
               autoComplete="email"
               autoFocus
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                // Clear error when user starts typing
+                if (error) {
+                  setError('');
+                }
+              }}
             />
             <TextField
               margin="normal"
@@ -134,7 +205,13 @@ const Login: React.FC = () => {
               id="password"
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                // Clear error when user starts typing
+                if (error) {
+                  setError('');
+                }
+              }}
             />
             <Button
               type="submit"
@@ -161,4 +238,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default Login;

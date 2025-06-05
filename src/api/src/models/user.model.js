@@ -42,12 +42,10 @@ class User {
         updated_at: now
       };
       
-      const [insertedId] = await this.db(this.tableName).insert(user).returning('id');
+      const [insertedUser] = await this.db(this.tableName).insert(user).returning('*');
       
-      // Get the created user
-      const createdUser = await this.db(this.tableName)
-        .where({ id: insertedId })
-        .first();
+      // Return user without password
+      const createdUser = { ...insertedUser };
       
       // Return user without password
       delete createdUser.password;
@@ -66,8 +64,11 @@ class User {
    */
   async findById(id, tenantId) {
     try {
+      // Ensure id is an integer
+      const userId = typeof id === 'object' && id.id ? id.id : id;
+      
       const user = await this.db(this.tableName)
-        .where({ id, tenant_id: tenantId || 'default' })
+        .where({ id: userId, tenant_id: tenantId || 'default' })
         .first();
         
       if (user) {
@@ -85,16 +86,24 @@ class User {
    * Find user by email
    * @param {string} email - User email
    * @param {string} tenantId - Tenant ID
+   * @param {boolean} includePassword - Whether to include password in result
    * @returns {Object} User
    */
-  async findByEmail(email, tenantId) {
+  async findByEmail(email, tenantId, includePassword = false) {
     try {
-      return this.db(this.tableName)
+      const user = await this.db(this.tableName)
         .where({ 
           email: email.toLowerCase(),
           tenant_id: tenantId || 'default'
         })
         .first();
+        
+      // Remove password unless explicitly requested (for authentication)
+      if (user && !includePassword) {
+        delete user.password;
+      }
+      
+      return user;
     } catch (error) {
       logger.error(`Error finding user by email: ${error.message}`);
       throw error;
@@ -173,11 +182,14 @@ class User {
         updateData.password = await bcrypt.hash(updateData.password, salt); // Store in 'password' column
       }
       
+      // Ensure id is an integer
+      const userId = typeof id === 'object' && id.id ? id.id : id;
+      
       await this.db(this.tableName)
-        .where({ id, tenant_id: tenantId || 'default' })
+        .where({ id: userId, tenant_id: tenantId || 'default' })
         .update(updateData);
         
-      return this.findById(id, tenantId);
+      return this.findById(userId, tenantId);
     } catch (error) {
       logger.error(`Error updating user: ${error.message}`);
       throw error;

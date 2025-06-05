@@ -106,11 +106,21 @@ class AuthController {
         });
       }
       
-      if (error.message === 'Account temporarily locked. Try again later.') {
+      if (error.message.includes('Invalid credentials. Account will be temporarily locked')) {
         return res.status(401).json({
           success: false,
           error: {
-            message: 'Account temporarily locked due to multiple failed attempts. Try again later.',
+            message: error.message,
+            code: 'INVALID_CREDENTIALS_WARNING'
+          }
+        });
+      }
+      
+      if (error.message.includes('Account temporarily locked due to multiple failed login attempts')) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            message: error.message,
             code: 'ACCOUNT_LOCKED'
           }
         });

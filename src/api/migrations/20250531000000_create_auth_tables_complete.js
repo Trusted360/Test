@@ -17,58 +17,70 @@ exports.up = function(knex) {
         });
       }
     })
-    // Create sessions table with tenant_id from the start
+    // Create sessions table with tenant_id from the start (only if it doesn't exist)
     .then(() => {
-      return knex.schema.createTable('sessions', (table) => {
-        table.increments('id').primary();
-        table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-        table.string('token', 255).notNullable();
-        table.string('token_hash', 255);
-        table.string('device_info', 255);
-        table.string('ip_address', 45);
-        table.string('user_agent', 500);
-        table.string('tenant_id', 50).notNullable().defaultTo('default');
-        table.timestamp('expires_at').notNullable();
-        table.boolean('is_active').defaultTo(true);
-        table.timestamp('last_activity_at');
-        table.timestamps(true, true);
-        
-        // All indexes created at once
-        table.index('token');
-        table.index(['user_id', 'is_active']);
-        table.index(['user_id', 'tenant_id']);
+      return knex.schema.hasTable('sessions').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('sessions', (table) => {
+            table.increments('id').primary();
+            table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+            table.string('token', 255).notNullable();
+            table.string('token_hash', 255);
+            table.string('device_info', 255);
+            table.string('ip_address', 45);
+            table.string('user_agent', 500);
+            table.string('tenant_id', 50).notNullable().defaultTo('default');
+            table.timestamp('expires_at').notNullable();
+            table.boolean('is_active').defaultTo(true);
+            table.timestamp('last_activity_at');
+            table.timestamps(true, true);
+            
+            // All indexes created at once
+            table.index('token');
+            table.index(['user_id', 'is_active']);
+            table.index(['user_id', 'tenant_id']);
+          });
+        }
       });
     })
-    // Create user_activities table with tenant_id from the start
+    // Create user_activities table with tenant_id from the start (only if it doesn't exist)
     .then(() => {
-      return knex.schema.createTable('user_activities', (table) => {
-        table.increments('id').primary();
-        table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-        table.string('activity_type', 50).notNullable();
-        table.json('details');
-        table.string('resource_type', 50);
-        table.string('resource_id', 255);
-        table.string('ip_address', 45);
-        table.string('user_agent', 500);
-        table.string('tenant_id', 50).notNullable().defaultTo('default');
-        table.timestamps(true, true);
-        
-        // All indexes created at once
-        table.index(['user_id', 'activity_type']);
-        table.index(['user_id', 'tenant_id']);
+      return knex.schema.hasTable('user_activities').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('user_activities', (table) => {
+            table.increments('id').primary();
+            table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+            table.string('activity_type', 50).notNullable();
+            table.json('details');
+            table.string('resource_type', 50);
+            table.string('resource_id', 255);
+            table.string('ip_address', 45);
+            table.string('user_agent', 500);
+            table.string('tenant_id', 50).notNullable().defaultTo('default');
+            table.timestamps(true, true);
+            
+            // All indexes created at once
+            table.index(['user_id', 'activity_type']);
+            table.index(['user_id', 'tenant_id']);
+          });
+        }
       });
     })
-    // Create password_reset_tokens table
+    // Create password_reset_tokens table (only if it doesn't exist)
     .then(() => {
-      return knex.schema.createTable('password_reset_tokens', (table) => {
-        table.increments('id').primary();
-        table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-        table.string('token', 255).notNullable().unique();
-        table.timestamp('expires_at').notNullable();
-        table.boolean('used').defaultTo(false);
-        table.timestamps(true, true);
-        
-        table.index('token');
+      return knex.schema.hasTable('password_reset_tokens').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('password_reset_tokens', (table) => {
+            table.increments('id').primary();
+            table.integer('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+            table.string('token', 255).notNullable().unique();
+            table.timestamp('expires_at').notNullable();
+            table.boolean('used').defaultTo(false);
+            table.timestamps(true, true);
+            
+            table.index('token');
+          });
+        }
       });
     });
 };
@@ -93,4 +105,4 @@ exports.down = function(knex) {
         }
       });
     });
-}; 
+};

@@ -22,15 +22,21 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Check for auth errors
+    // Check for auth errors, but don't clear localStorage for login attempts
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Optional: Redirect to login page
-      // window.location.href = '/login';
+      // Only clear localStorage if this is NOT a login attempt
+      // Login attempts to /auth/login should not clear existing session data
+      const isLoginAttempt = error.config?.url?.includes('/auth/login');
+      
+      if (!isLoginAttempt) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Optional: Redirect to login page
+        // window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
-export default api; 
+export default api;

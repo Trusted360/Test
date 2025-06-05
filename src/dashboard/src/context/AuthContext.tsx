@@ -64,7 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Login function
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
       console.log('Attempting login with:', email); // Debug log
       const response = await api.post('/auth/login', { email, password });
@@ -85,14 +84,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Update state
       setUser(user);
-      setLoading(false);
       
       // Navigate after state is updated
       navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Login failed:', error);
       console.error('Error response:', error.response); // Debug log
-      setLoading(false);
       throw error;
     }
   };
@@ -172,4 +169,4 @@ export const useAuth = () => {
   return context;
 };
 
-export default AuthContext; 
+export default AuthContext;
