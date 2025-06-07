@@ -5,6 +5,10 @@ const authRoutesFn = require('./auth.routes'); // Renamed to indicate it's a fun
 const ollamaRoutes = require('./ollama.routes');
 const notificationsRoutes = require('./notifications.routes');
 const tagRoutes = require('./tag.routes');
+const adminRoutes = require('./admin');
+
+// Import middleware
+const { authenticateJWT, authMiddleware } = require('../middleware/auth');
 
 module.exports = function(services) { // Function that accepts services
   const router = express.Router();
@@ -15,6 +19,9 @@ module.exports = function(services) { // Function that accepts services
   router.use('/ollama', ollamaRoutes);
   router.use('/notifications', notificationsRoutes);
   router.use('/tags', tagRoutes);
+  
+  // Admin routes (protected by session-aware auth middleware)
+  router.use('/admin', authMiddleware(services.sessionModel, services.userModel), adminRoutes);
 
   // API version and status
   router.get('/', (req, res) => {

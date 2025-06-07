@@ -22,6 +22,7 @@ exports.up = function(knex) {
             table.string('first_name', 255);
             table.string('last_name', 255);
             table.string('role', 50).defaultTo('user');
+            table.string('admin_level', 20).defaultTo('none');
             table.boolean('email_verified').defaultTo(false);
             table.timestamp('created_at').defaultTo(knex.fn.now());
             table.timestamp('updated_at').defaultTo(knex.fn.now());
@@ -105,4 +106,4 @@ exports.up = function(knex) {
 exports.down = function(knex) {
   // Don't drop tables in baseline migration
   return Promise.resolve();
-}; 
+};

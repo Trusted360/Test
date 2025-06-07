@@ -10,6 +10,7 @@ interface User {
   last_name?: string;
   name?: string; // Computed from first_name + last_name
   role: string;
+  admin_level?: string; // Admin access level: 'none', 'read_only', 'admin', 'super_admin'
   tenant_id?: string;
   email_verified?: boolean;
   created_at?: string;

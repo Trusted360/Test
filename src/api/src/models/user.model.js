@@ -222,7 +222,7 @@ class User {
     try {
       const users = await this.db(this.tableName)
         .where({ tenant_id: tenantId || 'default' })
-        .select('id', 'email', 'first_name', 'last_name', 'role', 'created_at', 'updated_at', 'email_verified');
+        .select('id', 'email', 'first_name', 'last_name', 'role', 'admin_level', 'created_at', 'updated_at', 'email_verified');
       
       return users;
     } catch (error) {

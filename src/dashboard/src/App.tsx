@@ -13,6 +13,11 @@ const Register = lazy(() => import('@pages/Auth/Register'));
 const NotFound = lazy(() => import('@pages/NotFound'));
 const Settings = lazy(() => import('@pages/Settings'));
 
+// Admin pages
+const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
+const SqlConsole = lazy(() => import('@pages/Admin/SqlConsole'));
+const SystemHealth = lazy(() => import('@pages/Admin/SystemHealth'));
+
 // Loading fallback
 const LoadingFallback = () => (
   <Box
@@ -73,6 +78,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sql"
+            element={
+              <ProtectedRoute>
+                <SqlConsole />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/health"
+            element={
+              <ProtectedRoute>
+                <SystemHealth />
               </ProtectedRoute>
             }
           />
