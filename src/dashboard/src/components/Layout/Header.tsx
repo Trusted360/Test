@@ -70,9 +70,13 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Simmer
-        </Typography>
+        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+          <img 
+            src="/assets/logos/trusted360-logo-small.svg" 
+            alt="Trusted 360" 
+            style={{ height: '32px', width: 'auto' }}
+          />
+        </Box>
         
         {user && (
           <Box>

@@ -153,12 +153,13 @@ const Login: React.FC = () => {
             borderRadius: 2,
           }}
         >
-          <Typography variant="h4" component="h1" align="center" gutterBottom>
-            Sign In
-          </Typography>
-          <Typography variant="subtitle1" align="center" color="text.secondary" mb={4}>
-            Welcome back to Trusted 360
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <img 
+              src="/assets/logos/trusted360-logo.svg" 
+              alt="Trusted 360" 
+              style={{ height: '60px', width: 'auto' }}
+            />
+          </Box>
 
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>

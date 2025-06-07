@@ -94,11 +94,15 @@ const Register: React.FC = () => {
             borderRadius: 2,
           }}
         >
-          <Typography variant="h4" component="h1" align="center" gutterBottom>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <img 
+              src="/assets/logos/trusted360-logo.svg" 
+              alt="Trusted 360" 
+              style={{ height: '60px', width: 'auto' }}
+            />
+          </Box>
+          <Typography variant="h5" component="h1" align="center" gutterBottom>
             Create Account
-          </Typography>
-          <Typography variant="subtitle1" align="center" color="text.secondary" mb={4}>
-            Join Trusted 360 and secure your facilities
           </Typography>
 
           {error && (
@@ -186,4 +190,4 @@ const Register: React.FC = () => {
   );
 };
 
-export default Register; 
+export default Register;
