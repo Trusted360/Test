@@ -5,6 +5,10 @@ const RedisService = require('./redis');
 const NotificationService = require('./notification.service');
 const TagService = require('./tag.service');
 const ImageStorageService = require('./imageStorage.service');
+const PropertyService = require('./property.service');
+const ChecklistService = require('./checklist.service');
+const VideoAnalysisService = require('./videoAnalysis.service');
+const ChatService = require('./chat.service');
 
 module.exports = {
   AuthService,
@@ -13,5 +17,9 @@ module.exports = {
   RedisService,
   NotificationService,
   TagService,
-  ImageStorageService
+  ImageStorageService,
+  PropertyService,
+  ChecklistService,
+  VideoAnalysisService,
+  ChatService
 };

@@ -17,6 +17,8 @@ const Settings = lazy(() => import('@pages/Settings'));
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
 const SqlConsole = lazy(() => import('@pages/Admin/SqlConsole'));
 const SystemHealth = lazy(() => import('@pages/Admin/SystemHealth'));
+const LogViewer = lazy(() => import('@pages/Admin/LogViewer'));
+const SchemaExplorer = lazy(() => import('@pages/Admin/SchemaExplorer'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -102,6 +104,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <SystemHealth />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/logs"
+            element={
+              <ProtectedRoute>
+                <LogViewer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/schema"
+            element={
+              <ProtectedRoute>
+                <SchemaExplorer />
               </ProtectedRoute>
             }
           />

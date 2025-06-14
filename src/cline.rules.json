@@ -1,0 +1,49 @@
+{
+  "rules": [
+    {
+      "name": "Docker-Only Development",
+      "description": "All code must be tested and run inside the Docker Compose environment. Do not use or suggest tools outside of this setup.",
+      "enforce": true
+    },
+    {
+      "name": "Simplify Where Possible",
+      "description": "Prefer the simplest working solution. Avoid overly abstract, over-engineered designs unless a clear and practical advantage can be expressed.",
+      "enforce": true
+    },
+    {
+      "name": "Migrations Are Canonical",
+      "description": "When modifying the database schema, update existing migration files instead of creating new ones. The baseline should reflect the final desired state.",
+      "enforce": true
+    },
+    {
+      "name": "Idempotent Build",
+      "description": "The entire application must be destructible and rebuildable from scratch with no manual intervention.",
+      "enforce": true
+    },
+    {
+      "name": "Real Features Only",
+      "description": "Do not mock, fake, or simulate behavior unless explicitly asked to do so. All features should be real and functional.",
+      "enforce": true
+    },
+    {
+      "name": "Incremental, Not Fragmented",
+      "description": "Each feature should be built as part of the final PoC, not as isolated test stubs. No placeholder code for 'later'—build it fully as it's added.",
+      "enforce": true
+    },
+    {
+      "name": "Prompt for Tests",
+      "description": "After each significant change, prompt the user to run the tests (or test automatically if approved).",
+      "enforce": true
+    },
+    {
+      "name": "User-Driven Complexity",
+      "description": "Only implement complex logic (e.g., orchestration, correlation, state management) when requested or demonstrably necessary. Always validate with user first.",
+      "enforce": true
+    },
+    {
+      "name": "Data Integrity on Rebuild",
+      "description": "Ensure all volumes, seeds, and startup scripts can restore a functional and preconfigured baseline for demo or dev purposes.",
+      "enforce": true
+    }
+  ]
+}

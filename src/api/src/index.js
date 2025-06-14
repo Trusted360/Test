@@ -16,6 +16,10 @@ const { User } = require('./models');
 const Session = require('./models/session.model');
 const UserActivity = require('./models/user-activity.model');
 const AuthService = require('./services/auth.service');
+const PropertyService = require('./services/property.service');
+const ChecklistService = require('./services/checklist.service');
+const VideoAnalysisService = require('./services/videoAnalysis.service');
+const ChatService = require('./services/chat.service');
 const emailService = require('./services/email.service');
 
 // Initialize service instances
@@ -73,10 +77,26 @@ function initializeServices(db) {
   
   authServiceInstance = AuthService.initialize(userModel, sessionModel, userActivityModel, emailService);
   
+  // Initialize PropertyService with database connection
+  const propertyServiceInstance = new PropertyService(db);
+  
+  // Initialize ChecklistService with database connection
+  const checklistServiceInstance = new ChecklistService(db);
+  
+  // Initialize VideoAnalysisService with database connection
+  const videoAnalysisServiceInstance = new VideoAnalysisService(db);
+  
+  // Initialize ChatService with database connection
+  const chatServiceInstance = new ChatService(db);
+  
   logger.info('Services initialized');
   
   const services = {
     authService: authServiceInstance,
+    PropertyService: propertyServiceInstance,
+    ChecklistService: checklistServiceInstance,
+    VideoAnalysisService: videoAnalysisServiceInstance,
+    ChatService: chatServiceInstance,
     // Make other models/services available if needed by other routes
     userModel,
     sessionModel,

@@ -54,7 +54,20 @@ const SqlConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [history, setHistory] = useState<QueryHistory[]>(() => {
     const saved = localStorage.getItem('sql_console_history');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert timestamp strings back to Date objects
+        return parsed.map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        }));
+      } catch (error) {
+        console.error('Error parsing SQL history:', error);
+        return [];
+      }
+    }
+    return [];
   });
 
   // Check if user has admin access
@@ -372,7 +385,7 @@ const SqlConsole: React.FC = () => {
                 <Paper key={index} sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
-                      {item.timestamp.toLocaleString()}
+                      {item.timestamp instanceof Date ? item.timestamp.toLocaleString() : new Date(item.timestamp).toLocaleString()}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {item.success ? (

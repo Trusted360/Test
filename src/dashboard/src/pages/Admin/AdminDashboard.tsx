@@ -60,7 +60,7 @@ const AdminDashboard: React.FC = () => {
       icon: <DatabaseIcon sx={{ fontSize: 40 }} />,
       path: '/admin/schema',
       color: '#ed6c02',
-      disabled: true // Will implement later
+      disabled: false
     },
     {
       title: 'Log Viewer',
@@ -68,7 +68,7 @@ const AdminDashboard: React.FC = () => {
       icon: <LogsIcon sx={{ fontSize: 40 }} />,
       path: '/admin/logs',
       color: '#9c27b0',
-      disabled: true // Will implement later
+      disabled: false
     }
   ];
 
