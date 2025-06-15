@@ -1,0 +1,212 @@
+export interface ChecklistTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  property_type?: string;
+  category: string;
+  is_active: boolean;
+  created_by: number;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+  items?: ChecklistTemplateItem[];
+}
+
+export interface ChecklistTemplateItem {
+  id: number;
+  template_id: number;
+  title: string;
+  description?: string;
+  item_type: 'text' | 'number' | 'boolean' | 'file' | 'photo' | 'signature';
+  is_required: boolean;
+  requires_approval: boolean;
+  order_index: number;
+  validation_rules?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Checklist {
+  id: number;
+  template_id: number;
+  property_id: number;
+  assigned_to?: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'approved' | 'rejected';
+  due_date?: string;
+  completed_at?: string;
+  approved_at?: string;
+  approved_by?: number;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+  template?: ChecklistTemplate;
+  property?: {
+    id: number;
+    name: string;
+    address: string;
+  };
+  assigned_user?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  items?: ChecklistItem[];
+  responses?: ChecklistResponse[];
+}
+
+export interface ChecklistItem {
+  id: number;
+  checklist_id: number;
+  template_item_id: number;
+  title: string;
+  description?: string;
+  item_type: 'text' | 'number' | 'boolean' | 'file' | 'photo' | 'signature';
+  is_required: boolean;
+  requires_approval: boolean;
+  order_index: number;
+  validation_rules?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  response?: ChecklistResponse;
+}
+
+export interface ChecklistResponse {
+  id: number;
+  checklist_id: number;
+  item_id: number;
+  response_value?: string;
+  response_text?: string;
+  response_number?: number;
+  response_boolean?: boolean;
+  response_file_path?: string;
+  response_file_name?: string;
+  completed_by: number;
+  completed_at: string;
+  approval_status?: 'pending' | 'approved' | 'rejected';
+  approved_by?: number;
+  approved_at?: string;
+  approval_notes?: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+  attachments?: ChecklistAttachment[];
+  completed_user?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
+export interface ChecklistAttachment {
+  id: number;
+  response_id: number;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  uploaded_by: number;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateChecklistTemplateData {
+  name: string;
+  description?: string;
+  property_type?: string;
+  category: string;
+  items: CreateChecklistTemplateItemData[];
+}
+
+export interface CreateChecklistTemplateItemData {
+  title: string;
+  description?: string;
+  item_type: 'text' | 'number' | 'boolean' | 'file' | 'photo' | 'signature';
+  is_required: boolean;
+  requires_approval: boolean;
+  order_index: number;
+  validation_rules?: Record<string, any>;
+}
+
+export interface UpdateChecklistTemplateData extends Partial<CreateChecklistTemplateData> {}
+
+export interface CreateChecklistData {
+  template_id: number;
+  property_id: number;
+  assigned_to?: number;
+  due_date?: string;
+}
+
+export interface UpdateChecklistData {
+  assigned_to?: number;
+  status?: 'pending' | 'in_progress' | 'completed' | 'approved' | 'rejected';
+  due_date?: string;
+}
+
+export interface CompleteChecklistItemData {
+  response_value?: string;
+  response_text?: string;
+  response_number?: number;
+  response_boolean?: boolean;
+  notes?: string;
+}
+
+export interface ChecklistFilters {
+  status?: string;
+  property_id?: number;
+  assigned_to?: number;
+  template_id?: number;
+  due_date_from?: string;
+  due_date_to?: string;
+}
+
+export interface ChecklistTemplateFilters {
+  property_type?: string;
+  category?: string;
+  is_active?: boolean;
+}
+
+export interface ApprovalQueueItem {
+  id: number;
+  checklist_id: number;
+  item_id: number;
+  response_id: number;
+  checklist_name: string;
+  property_name: string;
+  item_title: string;
+  response_value: string;
+  completed_by: string;
+  completed_at: string;
+  requires_approval: boolean;
+  approval_status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface ApprovalAction {
+  response_id: number;
+  action: 'approve' | 'reject';
+  notes?: string;
+}
+
+// Utility types for UI components
+export interface ChecklistStats {
+  total_checklists: number;
+  pending_checklists: number;
+  in_progress_checklists: number;
+  completed_checklists: number;
+  approved_checklists: number;
+  completion_rate: number;
+  approval_rate: number;
+}
+
+export interface ChecklistSummary {
+  id: number;
+  template_name: string;
+  property_name: string;
+  status: string;
+  progress: number;
+  due_date?: string;
+  assigned_to?: string;
+  created_at: string;
+}

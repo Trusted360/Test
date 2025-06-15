@@ -38,6 +38,7 @@ exports.up = function(knex) {
             table.increments('id').primary();
             table.string('name', 255).notNullable();
             table.text('description');
+            table.string('category', 100).defaultTo('inspection'); // security, safety, maintenance, compliance, inspection, etc.
             table.string('property_type', 100); // filter templates by property type
             table.boolean('is_active').defaultTo(true);
             table.integer('created_by').references('id').inTable('users');
@@ -46,6 +47,7 @@ exports.up = function(knex) {
             
             // Indexes
             table.index(['tenant_id']);
+            table.index(['category']);
             table.index(['property_type']);
             table.index(['is_active']);
             table.index(['created_by']);

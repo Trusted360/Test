@@ -9,6 +9,18 @@ class ChecklistService {
   async getTemplates(tenantId, propertyType = null) {
     try {
       let query = this.knex('checklist_templates')
+        .select(
+          'id',
+          'name',
+          'description',
+          'category',
+          'property_type',
+          'is_active',
+          'created_by',
+          'tenant_id',
+          'created_at',
+          'updated_at'
+        )
         .where('tenant_id', tenantId)
         .where('is_active', true)
         .orderBy('name');

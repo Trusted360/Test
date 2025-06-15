@@ -12,6 +12,8 @@ const Login = lazy(() => import('@pages/Auth/Login'));
 const Register = lazy(() => import('@pages/Auth/Register'));
 const NotFound = lazy(() => import('@pages/NotFound'));
 const Settings = lazy(() => import('@pages/Settings'));
+const Properties = lazy(() => import('@pages/Properties'));
+const Checklists = lazy(() => import('@pages/Checklists'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
@@ -72,6 +74,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/properties"
+            element={
+              <ProtectedRoute>
+                <Properties />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists"
+            element={
+              <ProtectedRoute>
+                <Checklists />
               </ProtectedRoute>
             }
           />

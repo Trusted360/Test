@@ -15,7 +15,9 @@ import {
   Dashboard as DashboardIcon,
   Settings as SettingsIcon,
   AdminPanelSettings as AdminIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Business as BusinessIcon,
+  Assignment as ChecklistIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -65,6 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Properties', icon: <BusinessIcon />, path: '/properties' },
+    { text: 'Checklists', icon: <ChecklistIcon />, path: '/checklists' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
     ...(hasAdminAccess ? [{ text: 'Admin Portal', icon: <AdminIcon />, path: '/admin' }] : []),
   ];
