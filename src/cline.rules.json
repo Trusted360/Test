@@ -44,6 +44,11 @@
       "name": "Data Integrity on Rebuild",
       "description": "Ensure all volumes, seeds, and startup scripts can restore a functional and preconfigured baseline for demo or dev purposes.",
       "enforce": true
+    },
+    {
+      "name": "Session Completion Protocol",
+      "description": "When a session is complete, update all relevant artifact files in the artifacts/ directory to reflect the current state of work, progress made, and any changes to project status. Then output a comprehensive next session prompt in paragraph form that summarizes what was accomplished, what remains to be done, current blockers or considerations, and specific next steps for the following session. The prompt should provide enough context for seamless continuation of work without requiring extensive review of previous sessions.",
+      "enforce": true
     }
   ]
 }
