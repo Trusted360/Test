@@ -171,6 +171,28 @@ exports.up = function(knex) {
           });
         }
       });
+    })
+    
+    // Checklist comments - item-level discussions
+    .then(() => {
+      return knex.schema.hasTable('checklist_comments').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('checklist_comments', (table) => {
+            table.increments('id').primary();
+            table.integer('checklist_id').notNullable().references('id').inTable('property_checklists').onDelete('CASCADE');
+            table.integer('item_id').notNullable().references('id').inTable('checklist_items');
+            table.text('comment_text').notNullable();
+            table.integer('created_by').references('id').inTable('users');
+            table.timestamp('created_at').defaultTo(knex.fn.now());
+            
+            // Indexes for efficient queries
+            table.index(['checklist_id']);
+            table.index(['item_id']);
+            table.index(['created_by']);
+            table.index(['checklist_id', 'item_id']);
+          });
+        }
+      });
     });
 };
 
@@ -180,6 +202,7 @@ exports.up = function(knex) {
  */
 exports.down = function(knex) {
   return knex.schema
+    .dropTableIfExists('checklist_comments')
     .dropTableIfExists('checklist_approvals')
     .dropTableIfExists('checklist_attachments')
     .dropTableIfExists('checklist_responses')

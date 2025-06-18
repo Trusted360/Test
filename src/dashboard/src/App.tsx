@@ -14,6 +14,7 @@ const NotFound = lazy(() => import('@pages/NotFound'));
 const Settings = lazy(() => import('@pages/Settings'));
 const Properties = lazy(() => import('@pages/Properties'));
 const Checklists = lazy(() => import('@pages/Checklists'));
+const ChecklistDetail = lazy(() => import('@pages/Checklists/ChecklistDetail'));
 const VideoAnalysis = lazy(() => import('@pages/Video'));
 
 // Admin pages
@@ -91,6 +92,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Checklists />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists/:id"
+            element={
+              <ProtectedRoute>
+                <ChecklistDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists/:id/edit"
+            element={
+              <ProtectedRoute>
+                <ChecklistDetail editMode={true} />
               </ProtectedRoute>
             }
           />

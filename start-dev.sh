@@ -17,7 +17,7 @@ fi
 
 # Start database and Redis services
 echo "🗄️ Starting database and Redis services..."
-docker-compose up postgres redis -d
+docker compose up postgres redis -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
@@ -44,4 +44,4 @@ echo ""
 echo "🌐 Access points:"
 echo "- Dashboard: http://localhost:5173"
 echo "- API: http://localhost:3001"
-echo "- API Health: http://localhost:3001/api/health" 
+echo "- API Health: http://localhost:3001/api/health"

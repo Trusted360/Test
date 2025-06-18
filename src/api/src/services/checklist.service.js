@@ -75,13 +75,14 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type, items = [], created_by } = templateData;
+      const { name, description, property_type, category, items = [], created_by } = templateData;
 
       // Create template
       const [template] = await trx('checklist_templates')
         .insert({
           name,
           description,
+          category: category || 'inspection', // Use provided category or default to 'inspection'
           property_type,
           tenant_id: tenantId,
           created_by,
@@ -119,7 +120,7 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type, items = [] } = templateData;
+      const { name, description, property_type, category, items = [] } = templateData;
 
       // Update template
       await trx('checklist_templates')
@@ -128,6 +129,7 @@ class ChecklistService {
         .update({
           name,
           description,
+          category: category || 'inspection', // Use provided category or default to 'inspection'
           property_type,
           updated_at: new Date()
         });
@@ -187,6 +189,86 @@ class ChecklistService {
       return { success: true, message: 'Template deleted successfully' };
     } catch (error) {
       logger.error('Error deleting checklist template:', error);
+      throw error;
+    }
+  }
+
+  async deleteChecklist(id, tenantId) {
+    const trx = await this.knex.transaction();
+    
+    try {
+      // First verify the checklist belongs to the tenant
+      const checklist = await trx('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', id)
+        .where('p.tenant_id', tenantId)
+        .select('pc.*')
+        .first();
+
+      if (!checklist) {
+        throw new Error('Checklist not found');
+      }
+
+      // Check if checklist has been completed or approved
+      if (checklist.status === 'completed' || checklist.status === 'approved') {
+        throw new Error('Cannot delete completed or approved checklists');
+      }
+
+      // Delete related data in order (due to foreign key constraints)
+      // 1. Delete comments
+      await trx('checklist_comments')
+        .where('checklist_id', id)
+        .del();
+
+      // 2. Delete attachments (get file paths first for cleanup)
+      const attachments = await trx('checklist_attachments as ca')
+        .join('checklist_responses as cr', 'ca.response_id', 'cr.id')
+        .where('cr.checklist_id', id)
+        .select('ca.file_path');
+
+      await trx('checklist_attachments')
+        .whereIn('response_id', function() {
+          this.select('id')
+            .from('checklist_responses')
+            .where('checklist_id', id);
+        })
+        .del();
+
+      // 3. Delete approvals
+      await trx('checklist_approvals')
+        .whereIn('response_id', function() {
+          this.select('id')
+            .from('checklist_responses')
+            .where('checklist_id', id);
+        })
+        .del();
+
+      // 4. Delete responses
+      await trx('checklist_responses')
+        .where('checklist_id', id)
+        .del();
+
+      // 5. Finally delete the checklist itself
+      await trx('property_checklists')
+        .where('id', id)
+        .del();
+
+      await trx.commit();
+
+      // Clean up attachment files from disk
+      const fs = require('fs').promises;
+      for (const attachment of attachments) {
+        try {
+          await fs.unlink(attachment.file_path);
+        } catch (err) {
+          logger.warn('Failed to delete attachment file:', attachment.file_path, err);
+        }
+      }
+
+      return { success: true, message: 'Checklist deleted successfully' };
+    } catch (error) {
+      await trx.rollback();
+      logger.error('Error deleting checklist:', error);
       throw error;
     }
   }
@@ -338,8 +420,66 @@ class ChecklistService {
     }
   }
 
+  async updateChecklist(id, updateData, tenantId) {
+    try {
+      const allowedFields = ['assigned_to', 'due_date', 'status'];
+      const filteredData = {};
+      
+      // Only include allowed fields
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          filteredData[field] = updateData[field];
+        }
+      }
+      
+      // Add updated_at timestamp
+      filteredData.updated_at = new Date();
+      
+      // Handle status-specific updates
+      if (filteredData.status === 'completed') {
+        filteredData.completed_at = new Date();
+      }
+
+      // First verify the checklist belongs to the tenant
+      const checklistExists = await this.knex('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', id)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      if (!checklistExists) {
+        throw new Error('Checklist not found');
+      }
+
+      // Then update the checklist directly
+      const result = await this.knex('property_checklists')
+        .where('id', id)
+        .update(filteredData);
+
+      if (result === 0) {
+        throw new Error('Failed to update checklist');
+      }
+
+      return await this.getChecklistById(id, tenantId);
+    } catch (error) {
+      logger.error('Error updating checklist:', error);
+      throw error;
+    }
+  }
+
   async updateChecklistStatus(id, status, tenantId) {
     try {
+      // First verify the checklist belongs to the tenant
+      const checklistExists = await this.knex('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', id)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      if (!checklistExists) {
+        throw new Error('Checklist not found');
+      }
+
       const updateData = {
         status,
         updated_at: new Date()
@@ -349,14 +489,13 @@ class ChecklistService {
         updateData.completed_at = new Date();
       }
 
-      const result = await this.knex('property_checklists as pc')
-        .join('properties as p', 'pc.property_id', 'p.id')
-        .where('pc.id', id)
-        .where('p.tenant_id', tenantId)
+      // Then update the checklist directly without join
+      const result = await this.knex('property_checklists')
+        .where('id', id)
         .update(updateData);
 
       if (result === 0) {
-        throw new Error('Checklist not found');
+        throw new Error('Failed to update checklist status');
       }
 
       return await this.getChecklistById(id, tenantId);
@@ -452,6 +591,170 @@ class ChecklistService {
       return attachment;
     } catch (error) {
       logger.error('Error uploading attachment:', error);
+      throw error;
+    }
+  }
+
+  async getAttachment(attachmentId, tenantId) {
+    try {
+      // Get attachment with verification that it belongs to the tenant
+      const attachment = await this.knex('checklist_attachments as ca')
+        .select('ca.*')
+        .join('checklist_responses as cr', 'ca.response_id', 'cr.id')
+        .join('property_checklists as pc', 'cr.checklist_id', 'pc.id')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('ca.id', attachmentId)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      return attachment;
+    } catch (error) {
+      logger.error('Error fetching attachment:', error);
+      throw error;
+    }
+  }
+
+  // Comment Management
+  async addComment(checklistId, itemId, commentData, userId, tenantId) {
+    const trx = await this.knex.transaction();
+    
+    try {
+      const { comment_text } = commentData;
+
+      // Verify checklist belongs to tenant
+      const checklist = await trx('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', checklistId)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      if (!checklist) {
+        throw new Error('Checklist not found');
+      }
+
+      // Create comment
+      const [comment] = await trx('checklist_comments')
+        .insert({
+          checklist_id: checklistId,
+          item_id: itemId,
+          comment_text,
+          created_by: userId,
+          created_at: new Date()
+        })
+        .returning('*');
+
+      // Get user info for the comment
+      const user = await trx('users')
+        .where('id', userId)
+        .select('email', 'first_name', 'last_name')
+        .first();
+
+      comment.created_by_email = user.email;
+      comment.created_by_name = `${user.first_name} ${user.last_name}`;
+
+      await trx.commit();
+      return comment;
+    } catch (error) {
+      await trx.rollback();
+      logger.error('Error adding comment:', error);
+      throw error;
+    }
+  }
+
+  async getComments(checklistId, itemId, tenantId) {
+    try {
+      // Verify checklist belongs to tenant
+      const checklist = await this.knex('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', checklistId)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      if (!checklist) {
+        throw new Error('Checklist not found');
+      }
+
+      // Get comments with user info
+      const comments = await this.knex('checklist_comments as cc')
+        .select(
+          'cc.*',
+          'u.email as created_by_email',
+          this.knex.raw("CONCAT(u.first_name, ' ', u.last_name) as created_by_name")
+        )
+        .join('users as u', 'cc.created_by', 'u.id')
+        .where('cc.checklist_id', checklistId)
+        .where('cc.item_id', itemId)
+        .orderBy('cc.created_at', 'desc');
+
+      return comments;
+    } catch (error) {
+      logger.error('Error fetching comments:', error);
+      throw error;
+    }
+  }
+
+  async deleteComment(commentId, userId, tenantId) {
+    try {
+      // Verify comment exists and user has permission
+      const comment = await this.knex('checklist_comments as cc')
+        .join('property_checklists as pc', 'cc.checklist_id', 'pc.id')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('cc.id', commentId)
+        .where('p.tenant_id', tenantId)
+        .select('cc.*')
+        .first();
+
+      if (!comment) {
+        throw new Error('Comment not found');
+      }
+
+      // Only allow comment creator to delete
+      if (comment.created_by !== userId) {
+        throw new Error('Unauthorized to delete this comment');
+      }
+
+      await this.knex('checklist_comments')
+        .where('id', commentId)
+        .del();
+
+      return { success: true, message: 'Comment deleted successfully' };
+    } catch (error) {
+      logger.error('Error deleting comment:', error);
+      throw error;
+    }
+  }
+
+  // Uncomplete Item
+  async uncompleteItem(checklistId, itemId, userId, tenantId) {
+    const trx = await this.knex.transaction();
+    
+    try {
+      // Verify checklist belongs to tenant
+      const checklist = await trx('property_checklists as pc')
+        .join('properties as p', 'pc.property_id', 'p.id')
+        .where('pc.id', checklistId)
+        .where('p.tenant_id', tenantId)
+        .first();
+
+      if (!checklist) {
+        throw new Error('Checklist not found');
+      }
+
+      // Delete the response to uncomplete the item
+      const result = await trx('checklist_responses')
+        .where('checklist_id', checklistId)
+        .where('item_id', itemId)
+        .del();
+
+      if (result === 0) {
+        throw new Error('Item response not found');
+      }
+
+      await trx.commit();
+      return { success: true, message: 'Item uncompleted successfully' };
+    } catch (error) {
+      await trx.rollback();
+      logger.error('Error uncompleting item:', error);
       throw error;
     }
   }

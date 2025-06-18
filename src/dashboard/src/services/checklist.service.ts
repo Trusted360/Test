@@ -63,7 +63,23 @@ export class ChecklistService {
    * Create a new checklist template
    */
   async createTemplate(templateData: CreateChecklistTemplateData): Promise<ChecklistTemplate> {
-    const response = await api.post('/checklists/templates', templateData);
+    // Transform frontend data to match backend expectations
+    const transformedData = {
+      ...templateData,
+      items: templateData.items.map((item, index) => ({
+        item_text: item.title, // Backend expects item_text, not title
+        item_type: item.item_type,
+        is_required: item.is_required,
+        requires_approval: item.requires_approval,
+        sort_order: item.order_index || index,
+        config_json: {
+          description: item.description,
+          validation_rules: item.validation_rules
+        }
+      }))
+    };
+    
+    const response = await api.post('/checklists/templates', transformedData);
     return response.data.data;
   }
 
@@ -71,7 +87,23 @@ export class ChecklistService {
    * Update an existing template
    */
   async updateTemplate(id: number, templateData: UpdateChecklistTemplateData): Promise<ChecklistTemplate> {
-    const response = await api.put(`/checklists/templates/${id}`, templateData);
+    // Transform frontend data to match backend expectations
+    const transformedData = {
+      ...templateData,
+      items: templateData.items?.map((item, index) => ({
+        item_text: item.title, // Backend expects item_text, not title
+        item_type: item.item_type,
+        is_required: item.is_required,
+        requires_approval: item.requires_approval,
+        sort_order: item.order_index || index,
+        config_json: {
+          description: item.description,
+          validation_rules: item.validation_rules
+        }
+      }))
+    };
+    
+    const response = await api.put(`/checklists/templates/${id}`, transformedData);
     return response.data.data;
   }
 
@@ -136,6 +168,13 @@ export class ChecklistService {
   }
 
   /**
+   * Get a specific checklist by ID (alias for getChecklistById)
+   */
+  async getChecklist(id: number): Promise<Checklist> {
+    return this.getChecklistById(id);
+  }
+
+  /**
    * Create a new checklist instance
    */
   async createChecklist(checklistData: CreateChecklistData): Promise<Checklist> {
@@ -149,6 +188,14 @@ export class ChecklistService {
   async updateChecklistStatus(id: number, status: string): Promise<Checklist> {
     const response = await api.put(`/checklists/${id}/status`, { status });
     return response.data.data;
+  }
+
+  /**
+   * Delete a checklist
+   */
+  async deleteChecklist(id: number): Promise<{ message: string }> {
+    const response = await api.delete(`/checklists/${id}`);
+    return response.data;
   }
 
   /**
@@ -166,6 +213,30 @@ export class ChecklistService {
    */
   async completeItem(checklistId: number, itemId: number, responseData: CompleteChecklistItemData): Promise<any> {
     const response = await api.post(`/checklists/${checklistId}/items/${itemId}/complete`, responseData);
+    return response.data.data;
+  }
+
+  /**
+   * Update a checklist item
+   */
+  async updateChecklistItem(checklistId: number, itemId: number, updateData: { status: string; notes?: string }): Promise<any> {
+    const response = await api.put(`/checklists/${checklistId}/items/${itemId}`, updateData);
+    return response.data.data;
+  }
+
+  /**
+   * Add a comment to a checklist item
+   */
+  async addItemComment(checklistId: number, itemId: number, commentData: { content: string }): Promise<any> {
+    const response = await api.post(`/checklists/${checklistId}/items/${itemId}/comments`, commentData);
+    return response.data.data;
+  }
+
+  /**
+   * Submit checklist for approval
+   */
+  async submitForApproval(checklistId: number): Promise<any> {
+    const response = await api.post(`/checklists/${checklistId}/submit-approval`);
     return response.data.data;
   }
 

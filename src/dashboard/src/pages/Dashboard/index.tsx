@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { Business as BusinessIcon, Add as AddIcon } from '@mui/icons-material';
+import { Business as BusinessIcon, Add as AddIcon, Assignment as AssignmentIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PropertyWithStats, propertyService } from '../../services/property.service';
+import { checklistService } from '../../services/checklist.service';
+import { Checklist } from '../../types/checklist.types';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -19,9 +21,12 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [properties, setProperties] = useState<PropertyWithStats[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const [recentChecklists, setRecentChecklists] = useState<Checklist[]>([]);
+  const [checklistsLoading, setChecklistsLoading] = useState(true);
 
   useEffect(() => {
     loadProperties();
+    loadRecentChecklists();
   }, []);
 
   const loadProperties = async () => {
@@ -33,6 +38,19 @@ const Dashboard: React.FC = () => {
       console.error('Error loading properties:', error);
     } finally {
       setPropertiesLoading(false);
+    }
+  };
+
+  const loadRecentChecklists = async () => {
+    try {
+      setChecklistsLoading(true);
+      const response = await checklistService.getChecklists();
+      // Get the 5 most recent checklists
+      setRecentChecklists(response.data.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading checklists:', error);
+    } finally {
+      setChecklistsLoading(false);
     }
   };
 
@@ -92,6 +110,13 @@ const Dashboard: React.FC = () => {
                             variant="outlined"
                             size="small"
                           />
+                          {property.checklist_count && property.checklist_count > 0 && (
+                            <Chip
+                              label={`${property.checklist_count} checklists`}
+                              variant="outlined"
+                              size="small"
+                            />
+                          )}
                         </Stack>
                       </Paper>
                     </Grid>
@@ -117,12 +142,66 @@ const Dashboard: React.FC = () => {
 
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
-              <Typography variant="h6" gutterBottom>
-                Recent Checklists
-              </Typography>
-              <Typography variant="body2">
-                No recent checklists completed. Create checklist templates and start auditing your properties.
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                  <AssignmentIcon />
+                  Recent Checklists
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/checklists')}
+                >
+                  View All
+                </Button>
+              </Box>
+              
+              {checklistsLoading ? (
+                <Box display="flex" justifyContent="center" py={2}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : recentChecklists.length > 0 ? (
+                <Stack spacing={1}>
+                  {recentChecklists.map((checklist) => (
+                    <Paper 
+                      key={checklist.id} 
+                      variant="outlined" 
+                      sx={{ p: 1.5, cursor: 'pointer' }}
+                      onClick={() => navigate(`/checklists/${checklist.id}`)}
+                    >
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="medium">
+                            {checklist.template?.name || 'Untitled Checklist'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {checklist.property?.name || 'No Property'} • {new Date(checklist.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={checklistService.formatStatus(checklist.status)}
+                          color={checklistService.getStatusColor(checklist.status)}
+                          size="small"
+                        />
+                      </Box>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : (
+                <Box textAlign="center" py={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    No checklists created yet.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate('/checklists')}
+                    size="small"
+                  >
+                    Create Your First Checklist
+                  </Button>
+                </Box>
+              )}
             </StyledPaper>
           </Grid>
           

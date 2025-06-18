@@ -270,6 +270,31 @@ module.exports = function(services) {
     }
   });
 
+  // PUT /api/checklists/:id - Update checklist
+  router.put('/:id', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const { id } = req.params;
+      const updateData = req.body;
+
+      const checklist = await ChecklistService.updateChecklist(parseInt(id), updateData, tenantId);
+
+      res.json({
+        success: true,
+        data: checklist,
+        message: 'Checklist updated successfully'
+      });
+    } catch (error) {
+      logger.error('Error updating checklist:', error);
+      const statusCode = error.message === 'Checklist not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to update checklist',
+        message: error.message
+      });
+    }
+  });
+
   // PUT /api/checklists/:id/status - Update checklist status
   router.put('/:id/status', async (req, res) => {
     try {
@@ -297,6 +322,31 @@ module.exports = function(services) {
       res.status(statusCode).json({
         success: false,
         error: 'Failed to update checklist status',
+        message: error.message
+      });
+    }
+  });
+
+  // DELETE /api/checklists/:id - Delete checklist
+  router.delete('/:id', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const { id } = req.params;
+
+      const result = await ChecklistService.deleteChecklist(parseInt(id), tenantId);
+
+      res.json({
+        success: true,
+        data: result,
+        message: result.message
+      });
+    } catch (error) {
+      logger.error('Error deleting checklist:', error);
+      const statusCode = error.message === 'Checklist not found' ? 404 : 
+                        error.message.includes('Cannot delete') ? 409 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to delete checklist',
         message: error.message
       });
     }
@@ -330,6 +380,127 @@ module.exports = function(services) {
       res.status(statusCode).json({
         success: false,
         error: 'Failed to complete checklist item',
+        message: error.message
+      });
+    }
+  });
+
+  // DELETE /api/checklists/:id/items/:itemId/complete - Uncomplete checklist item
+  router.delete('/:id/items/:itemId/complete', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const userId = req.user?.id;
+      const { id, itemId } = req.params;
+
+      const result = await ChecklistService.uncompleteItem(
+        parseInt(id),
+        parseInt(itemId),
+        userId,
+        tenantId
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: result.message
+      });
+    } catch (error) {
+      logger.error('Error uncompleting checklist item:', error);
+      const statusCode = error.message === 'Checklist not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to uncomplete checklist item',
+        message: error.message
+      });
+    }
+  });
+
+  // Comment Routes
+
+  // GET /api/checklists/:id/items/:itemId/comments - Get comments for an item
+  router.get('/:id/items/:itemId/comments', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const { id, itemId } = req.params;
+
+      const comments = await ChecklistService.getComments(
+        parseInt(id),
+        parseInt(itemId),
+        tenantId
+      );
+
+      res.json({
+        success: true,
+        data: comments,
+        count: comments.length
+      });
+    } catch (error) {
+      logger.error('Error fetching comments:', error);
+      const statusCode = error.message === 'Checklist not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to fetch comments',
+        message: error.message
+      });
+    }
+  });
+
+  // POST /api/checklists/:id/items/:itemId/comments - Add comment to an item
+  router.post('/:id/items/:itemId/comments', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const userId = req.user?.id;
+      const { id, itemId } = req.params;
+
+      const comment = await ChecklistService.addComment(
+        parseInt(id),
+        parseInt(itemId),
+        req.body,
+        userId,
+        tenantId
+      );
+
+      res.status(201).json({
+        success: true,
+        data: comment,
+        message: 'Comment added successfully'
+      });
+    } catch (error) {
+      logger.error('Error adding comment:', error);
+      const statusCode = error.message === 'Checklist not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to add comment',
+        message: error.message
+      });
+    }
+  });
+
+  // DELETE /api/checklists/comments/:commentId - Delete a comment
+  router.delete('/comments/:commentId', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const userId = req.user?.id;
+      const { commentId } = req.params;
+
+      const result = await ChecklistService.deleteComment(
+        parseInt(commentId),
+        userId,
+        tenantId
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: result.message
+      });
+    } catch (error) {
+      logger.error('Error deleting comment:', error);
+      const statusCode = error.message === 'Comment not found' ? 404 : 
+                        error.message.includes('Unauthorized') ? 403 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: 'Failed to delete comment',
         message: error.message
       });
     }
@@ -388,6 +559,59 @@ module.exports = function(services) {
       res.status(500).json({
         success: false,
         error: 'Failed to upload attachment',
+        message: error.message
+      });
+    }
+  });
+
+  // GET /api/checklists/attachments/:attachmentId/download - Download attachment
+  router.get('/attachments/:attachmentId/download', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+      const { attachmentId } = req.params;
+
+      const attachment = await ChecklistService.getAttachment(
+        parseInt(attachmentId),
+        tenantId
+      );
+
+      if (!attachment) {
+        return res.status(404).json({
+          success: false,
+          error: 'Attachment not found'
+        });
+      }
+
+      // Check if file exists
+      try {
+        await fs.access(attachment.file_path);
+      } catch (err) {
+        logger.error('Attachment file not found on disk:', attachment.file_path);
+        return res.status(404).json({
+          success: false,
+          error: 'Attachment file not found'
+        });
+      }
+
+      // Set appropriate headers
+      res.setHeader('Content-Type', attachment.file_type);
+      
+      // For PDFs and images, use inline disposition so they open in browser
+      // For other files, use attachment to force download
+      const inlineTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      const disposition = inlineTypes.includes(attachment.file_type) ? 'inline' : 'attachment';
+      
+      res.setHeader('Content-Disposition', `${disposition}; filename="${attachment.file_name}"`);
+      res.setHeader('Content-Length', attachment.file_size);
+
+      // Stream the file
+      const fileStream = require('fs').createReadStream(attachment.file_path);
+      fileStream.pipe(res);
+    } catch (error) {
+      logger.error('Error downloading attachment:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to download attachment',
         message: error.message
       });
     }

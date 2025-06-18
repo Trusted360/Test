@@ -39,6 +39,7 @@ export interface Checklist {
   tenant_id: string;
   created_at: string;
   updated_at: string;
+  // Nested objects (optional, for detailed views)
   template?: ChecklistTemplate;
   property?: {
     id: number;
@@ -53,22 +54,48 @@ export interface Checklist {
   };
   items?: ChecklistItem[];
   responses?: ChecklistResponse[];
+  // Flat properties from API (for list views)
+  template_name?: string;
+  property_name?: string;
+  property_address?: string;
+  assigned_to_email?: string;
+  completion_stats?: {
+    total_items: number;
+    completed_items: number;
+    pending_approval: number;
+    completion_percentage: number;
+  };
 }
 
 export interface ChecklistItem {
   id: number;
-  checklist_id: number;
-  template_item_id: number;
-  title: string;
+  checklist_id?: number;
+  template_item_id?: number;
+  title?: string;
+  item_text?: string; // API returns this instead of title
   description?: string;
   item_type: 'text' | 'number' | 'boolean' | 'file' | 'photo' | 'signature';
   is_required: boolean;
-  requires_approval: boolean;
-  order_index: number;
+  requires_approval?: boolean;
+  order_index?: number;
+  sort_order?: number; // API uses this instead of order_index
   validation_rules?: Record<string, any>;
-  created_at: string;
-  updated_at: string;
+  config_json?: Record<string, any>; // API uses this
+  created_at?: string;
+  updated_at?: string;
   response?: ChecklistResponse;
+  // Fields from joined response data
+  response_id?: number;
+  response_value?: string;
+  notes?: string;
+  completed_by?: number;
+  completed_at?: string;
+  completed_by_email?: string;
+  // Additional fields for UI
+  status?: 'pending' | 'completed';
+  required?: boolean;
+  comments?: ChecklistComment[];
+  attachments?: ChecklistItemAttachment[];
 }
 
 export interface ChecklistResponse {
@@ -209,4 +236,41 @@ export interface ChecklistSummary {
   due_date?: string;
   assigned_to?: string;
   created_at: string;
+}
+
+// Additional types for ChecklistDetail component
+export interface ChecklistComment {
+  id: number;
+  checklist_id: number;
+  item_id: number;
+  comment_text: string;
+  created_by: number;
+  created_at: string;
+  // Additional fields from API joins
+  created_by_email?: string;
+  created_by_name?: string;
+}
+
+export interface ChecklistItemAttachment {
+  id: number;
+  item_id?: number;
+  response_id?: number;
+  file_name: string; // API uses file_name
+  filename?: string; // Alternative for compatibility
+  file_path?: string;
+  file_type?: string;
+  file_size: number;
+  uploaded_by: number;
+  uploaded_at?: string;
+  created_at: string;
+  url?: string;
+}
+
+export interface ChecklistItemUpdate {
+  status: 'pending' | 'completed';
+  notes?: string;
+}
+
+export interface AddCommentData {
+  content: string;
 }

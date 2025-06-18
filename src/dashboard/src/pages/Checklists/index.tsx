@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -31,7 +32,13 @@ import {
   LinearProgress,
   Tabs,
   Tab,
-  Badge
+  Badge,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Checkbox,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,14 +53,20 @@ import {
   Warning as WarningIcon,
   PlayArrow as PlayArrowIcon,
   Description as TemplateIcon,
-  Approval as ApprovalIcon
+  Approval as ApprovalIcon,
+  Close as CloseIcon,
+  Remove as RemoveIcon
 } from '@mui/icons-material';
 import { 
   Checklist,
   ChecklistTemplate,
   CreateChecklistData,
   ChecklistFilters,
-  ChecklistTemplateFilters
+  ChecklistTemplateFilters,
+  ChecklistTemplateItem,
+  CreateChecklistTemplateData,
+  CreateChecklistTemplateItemData,
+  UpdateChecklistTemplateData
 } from '../../types/checklist.types';
 import { checklistService } from '../../services/checklist.service';
 import { propertyService } from '../../services/property.service';
@@ -85,6 +98,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const Checklists: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   
   // Checklist states
@@ -106,6 +120,8 @@ const Checklists: React.FC = () => {
   // Dialog states
   const [createChecklistDialogOpen, setCreateChecklistDialogOpen] = useState(false);
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false);
+  const [viewTemplateDialogOpen, setViewTemplateDialogOpen] = useState(false);
+  const [editTemplateDialogOpen, setEditTemplateDialogOpen] = useState(false);
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
 
@@ -116,10 +132,27 @@ const Checklists: React.FC = () => {
     assigned_to: undefined,
     due_date: undefined
   });
+  const [templateFormData, setTemplateFormData] = useState<CreateChecklistTemplateData>({
+    name: '',
+    description: '',
+    category: '',
+    property_type: '',
+    items: []
+  });
   const [formLoading, setFormLoading] = useState(false);
 
   // Properties for dropdowns
   const [properties, setProperties] = useState<any[]>([]);
+  
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [checklistToDelete, setChecklistToDelete] = useState<Checklist | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Template delete dialog
+  const [deleteTemplateDialogOpen, setDeleteTemplateDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<ChecklistTemplate | null>(null);
+  const [deleteTemplateLoading, setDeleteTemplateLoading] = useState(false);
 
   // Load data on component mount and when filters change
   useEffect(() => {
@@ -193,6 +226,45 @@ const Checklists: React.FC = () => {
     }
   };
 
+  const handleCreateTemplate = async () => {
+    try {
+      setFormLoading(true);
+      await checklistService.createTemplate(templateFormData);
+      setCreateTemplateDialogOpen(false);
+      resetTemplateForm();
+      loadTemplates();
+      setTemplatesError(null);
+    } catch (err: any) {
+      setTemplatesError(err.response?.data?.message || 'Failed to create template');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!selectedTemplate) return;
+    
+    try {
+      setFormLoading(true);
+      const updateData: UpdateChecklistTemplateData = {
+        name: templateFormData.name,
+        description: templateFormData.description,
+        category: templateFormData.category,
+        property_type: templateFormData.property_type,
+        items: templateFormData.items
+      };
+      await checklistService.updateTemplate(selectedTemplate.id, updateData);
+      setEditTemplateDialogOpen(false);
+      resetTemplateForm();
+      loadTemplates();
+      setTemplatesError(null);
+    } catch (err: any) {
+      setTemplatesError(err.response?.data?.message || 'Failed to update template');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   const resetChecklistForm = () => {
     setChecklistFormData({
       template_id: 0,
@@ -200,6 +272,161 @@ const Checklists: React.FC = () => {
       assigned_to: undefined,
       due_date: undefined
     });
+  };
+
+  const resetTemplateForm = () => {
+    setTemplateFormData({
+      name: '',
+      description: '',
+      category: '',
+      property_type: '',
+      items: []
+    });
+  };
+
+  const handleDeleteClick = (checklist: Checklist) => {
+    setChecklistToDelete(checklist);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!checklistToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      await checklistService.deleteChecklist(checklistToDelete.id);
+      setDeleteDialogOpen(false);
+      setChecklistToDelete(null);
+      loadChecklists();
+      setChecklistsError(null);
+    } catch (err: any) {
+      setChecklistsError(err.response?.data?.message || 'Failed to delete checklist');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setChecklistToDelete(null);
+  };
+
+  const handleDeleteTemplateClick = (template: ChecklistTemplate) => {
+    setTemplateToDelete(template);
+    setDeleteTemplateDialogOpen(true);
+  };
+
+  const handleDeleteTemplateConfirm = async () => {
+    if (!templateToDelete) return;
+
+    try {
+      setDeleteTemplateLoading(true);
+      await checklistService.deleteTemplate(templateToDelete.id);
+      setDeleteTemplateDialogOpen(false);
+      setTemplateToDelete(null);
+      loadTemplates();
+      setTemplatesError(null);
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setTemplatesError('Cannot delete template: It is currently being used by one or more checklists.');
+      } else {
+        setTemplatesError(err.response?.data?.message || 'Failed to delete template');
+      }
+      setDeleteTemplateDialogOpen(false);
+      setTemplateToDelete(null);
+    } finally {
+      setDeleteTemplateLoading(false);
+    }
+  };
+
+  const handleDeleteTemplateCancel = () => {
+    setDeleteTemplateDialogOpen(false);
+    setTemplateToDelete(null);
+  };
+
+  const handleViewTemplate = async (template: ChecklistTemplate) => {
+    try {
+      // Fetch the full template with items
+      const fullTemplate = await checklistService.getTemplateById(template.id);
+      
+      // Transform items to match frontend expectations
+      if (fullTemplate.items) {
+        fullTemplate.items = fullTemplate.items.map((item: any) => ({
+          ...item,
+          title: item.item_text || item.title, // Use item_text from backend or fallback to title
+          description: item.config_json?.description || item.description || ''
+        }));
+      }
+      
+      setSelectedTemplate(fullTemplate);
+      setViewTemplateDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading template:', error);
+      setTemplatesError('Failed to load template details');
+    }
+  };
+
+  const handleEditTemplate = async (template: ChecklistTemplate) => {
+    try {
+      // Fetch the full template with items
+      const fullTemplate = await checklistService.getTemplateById(template.id);
+      
+      setSelectedTemplate(fullTemplate);
+      
+      // Convert template items to form data format
+      const items: CreateChecklistTemplateItemData[] = (fullTemplate.items || []).map((item: any, index) => ({
+        title: item.item_text || item.title, // Use item_text from backend
+        description: item.config_json?.description || item.description || '',
+        item_type: item.item_type,
+        is_required: item.is_required,
+        requires_approval: item.requires_approval || false,
+        order_index: item.sort_order || item.order_index || index,
+        validation_rules: item.config_json?.validation_rules || item.validation_rules
+      }));
+      
+      setTemplateFormData({
+        name: fullTemplate.name,
+        description: fullTemplate.description || '',
+        category: fullTemplate.category,
+        property_type: fullTemplate.property_type || '',
+        items
+      });
+      setEditTemplateDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading template:', error);
+      setTemplatesError('Failed to load template details');
+    }
+  };
+
+  const handleAddTemplateItem = () => {
+    const newItem: CreateChecklistTemplateItemData = {
+      title: '',
+      description: '',
+      item_type: 'text',
+      is_required: true,
+      requires_approval: false,
+      order_index: templateFormData.items.length
+    };
+    setTemplateFormData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+  };
+
+  const handleRemoveTemplateItem = (index: number) => {
+    setTemplateFormData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleUpdateTemplateItem = (index: number, field: keyof CreateChecklistTemplateItemData, value: any) => {
+    setTemplateFormData(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
   };
 
   const getStatusIcon = (status: string) => {
@@ -395,7 +622,7 @@ const Checklists: React.FC = () => {
                             {getStatusIcon(checklist.status)}
                             <Box>
                               <Typography variant="subtitle2" fontWeight="medium">
-                                {checklist.template?.name || `Checklist #${checklist.id}`}
+                                {checklist.template_name || `Checklist #${checklist.id}`}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
                                 Created {formatDate(checklist.created_at)}
@@ -405,10 +632,10 @@ const Checklists: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {checklist.property?.name || 'Unknown Property'}
+                            {checklist.property_name || 'Unknown Property'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {checklist.property?.address}
+                            {checklist.property_address}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -430,18 +657,18 @@ const Checklists: React.FC = () => {
                           <Box sx={{ width: '100%' }}>
                             <LinearProgress
                               variant="determinate"
-                              value={checklistService.calculateProgress(checklist)}
+                              value={checklist.completion_stats?.completion_percentage || 0}
                               sx={{ mb: 1 }}
                             />
                             <Typography variant="caption">
-                              {checklistService.calculateProgress(checklist)}% Complete
+                              {checklist.completion_stats?.completion_percentage || 0}% Complete
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {checklist.assigned_user ? (
+                          {checklist.assigned_to_email ? (
                             <Typography variant="body2">
-                              {checklist.assigned_user.first_name} {checklist.assigned_user.last_name}
+                              {checklist.assigned_to_email}
                             </Typography>
                           ) : (
                             <Typography variant="body2" color="text.secondary">
@@ -463,17 +690,26 @@ const Checklists: React.FC = () => {
                         <TableCell align="center">
                           <Stack direction="row" spacing={1} justifyContent="center">
                             <Tooltip title="View Details">
-                              <IconButton size="small">
+                              <IconButton 
+                                size="small"
+                                onClick={() => navigate(`/checklists/${checklist.id}`)}
+                              >
                                 <ViewIcon />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Edit Checklist">
-                              <IconButton size="small">
+                              <IconButton 
+                                size="small"
+                                onClick={() => navigate(`/checklists/${checklist.id}/edit`)}
+                              >
                                 <EditIcon />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete Checklist">
-                              <IconButton size="small">
+                              <IconButton 
+                                size="small"
+                                onClick={() => handleDeleteClick(checklist)}
+                              >
                                 <DeleteIcon />
                               </IconButton>
                             </Tooltip>
@@ -572,7 +808,7 @@ const Checklists: React.FC = () => {
                   <Grid item xs={12} md={6} lg={4} key={template.id}>
                     <Card>
                       <CardContent>
-                        <Box display="flex" justifyContent="between" alignItems="flex-start" mb={2}>
+                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                           <Box flex={1}>
                             <Typography variant="h6" gutterBottom>
                               {template.name}
@@ -602,13 +838,28 @@ const Checklists: React.FC = () => {
 
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                           <Tooltip title="View Template">
-                            <IconButton size="small">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleViewTemplate(template)}
+                            >
                               <ViewIcon />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Edit Template">
-                            <IconButton size="small">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleEditTemplate(template)}
+                            >
                               <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Template">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleDeleteTemplateClick(template)}
+                              color="error"
+                            >
+                              <DeleteIcon />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Create Checklist">
@@ -697,6 +948,545 @@ const Checklists: React.FC = () => {
               disabled={formLoading || !checklistFormData.template_id || !checklistFormData.property_id}
             >
               {formLoading ? <CircularProgress size={20} /> : 'Create Checklist'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Template Dialog */}
+        <Dialog 
+          open={createTemplateDialogOpen} 
+          onClose={() => setCreateTemplateDialogOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+          PaperProps={{
+            sx: { maxHeight: '90vh' }
+          }}
+        >
+          <DialogTitle>Create New Template</DialogTitle>
+          <DialogContent sx={{ overflow: 'auto' }}>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                label="Template Name"
+                value={templateFormData.name}
+                onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+              
+              <TextField
+                fullWidth
+                label="Description"
+                value={templateFormData.description}
+                onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+                multiline
+                rows={2}
+              />
+
+              <FormControl fullWidth required>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={templateFormData.category}
+                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, category: e.target.value }))}
+                  label="Category"
+                >
+                  {checklistService.getChecklistCategories().map(category => (
+                    <MenuItem key={category} value={category}>
+                      {checklistService.formatCategory(category)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Property Type</InputLabel>
+                <Select
+                  value={templateFormData.property_type}
+                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, property_type: e.target.value }))}
+                  label="Property Type"
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  {propertyService.getPropertyTypes().map(type => (
+                    <MenuItem key={type} value={type}>
+                      {propertyService.formatPropertyType(type)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Divider />
+              
+              <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle1">Checklist Items</Typography>
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleAddTemplateItem}
+                    size="small"
+                  >
+                    Add Item
+                  </Button>
+                </Box>
+                
+                {templateFormData.items.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                    No items added yet. Click "Add Item" to create checklist items.
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {templateFormData.items.map((item, index) => (
+                      <Paper key={index} sx={{ p: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="Item Title"
+                              value={item.title}
+                              onChange={(e) => handleUpdateTemplateItem(index, 'title', e.target.value)}
+                              required
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="Description"
+                              value={item.description}
+                              onChange={(e) => handleUpdateTemplateItem(index, 'description', e.target.value)}
+                              multiline
+                              rows={2}
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Type</InputLabel>
+                              <Select
+                                value={item.item_type}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'item_type', e.target.value)}
+                                label="Type"
+                              >
+                                <MenuItem value="text">Text</MenuItem>
+                                <MenuItem value="number">Number</MenuItem>
+                                <MenuItem value="boolean">Yes/No</MenuItem>
+                                <MenuItem value="file">File</MenuItem>
+                                <MenuItem value="photo">Photo</MenuItem>
+                                <MenuItem value="signature">Signature</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Required</InputLabel>
+                              <Select
+                                value={item.is_required ? 'yes' : 'no'}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'is_required', e.target.value === 'yes')}
+                                label="Required"
+                              >
+                                <MenuItem value="yes">Yes</MenuItem>
+                                <MenuItem value="no">No</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Approval</InputLabel>
+                              <Select
+                                value={item.requires_approval ? 'yes' : 'no'}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'requires_approval', e.target.value === 'yes')}
+                                label="Approval"
+                              >
+                                <MenuItem value="yes">Yes</MenuItem>
+                                <MenuItem value="no">No</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={1}>
+                            <IconButton
+                              onClick={() => handleRemoveTemplateItem(index)}
+                              color="error"
+                              size="small"
+                            >
+                              <RemoveIcon />
+                            </IconButton>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setCreateTemplateDialogOpen(false); resetTemplateForm(); }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateTemplate} 
+              variant="contained"
+              disabled={formLoading || !templateFormData.name || !templateFormData.category || templateFormData.items.length === 0}
+            >
+              {formLoading ? <CircularProgress size={20} /> : 'Create Template'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* View Template Dialog */}
+        <Dialog 
+          open={viewTemplateDialogOpen} 
+          onClose={() => setViewTemplateDialogOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+          PaperProps={{
+            sx: { maxHeight: '90vh' }
+          }}
+        >
+          <DialogTitle>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6">Template Details</Typography>
+              <IconButton onClick={() => setViewTemplateDialogOpen(false)} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ overflow: 'auto' }}>
+            {selectedTemplate && (
+              <Stack spacing={3} sx={{ mt: 1 }}>
+                <Box>
+                  <Typography variant="h5" gutterBottom>{selectedTemplate.name}</Typography>
+                  <Typography variant="body1" color="text.secondary" paragraph>
+                    {selectedTemplate.description}
+                  </Typography>
+                  <Stack direction="row" spacing={2}>
+                    <Chip 
+                      label={checklistService.formatCategory(selectedTemplate.category)} 
+                      color="primary" 
+                      size="small" 
+                    />
+                    {selectedTemplate.property_type && (
+                      <Chip 
+                        label={propertyService.formatPropertyType(selectedTemplate.property_type)} 
+                        color="secondary" 
+                        size="small" 
+                      />
+                    )}
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    Checklist Items ({selectedTemplate.items?.length || 0})
+                  </Typography>
+                  <List>
+                    {selectedTemplate.items?.map((item, index) => (
+                      <ListItem key={item.id} divider>
+                        <ListItemIcon>
+                          <Typography variant="body2" color="text.secondary">
+                            {index + 1}.
+                          </Typography>
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.title}
+                          secondary={
+                            <Stack spacing={0.5}>
+                              {item.description && (
+                                <Typography variant="body2" color="text.secondary">
+                                  {item.description}
+                                </Typography>
+                              )}
+                              <Stack direction="row" spacing={1}>
+                                <Chip label={item.item_type} size="small" variant="outlined" />
+                                {item.is_required && <Chip label="Required" size="small" color="error" />}
+                                {item.requires_approval && <Chip label="Requires Approval" size="small" color="warning" />}
+                              </Stack>
+                            </Stack>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setViewTemplateDialogOpen(false)}>Close</Button>
+            <Button 
+              onClick={() => {
+                setViewTemplateDialogOpen(false);
+                if (selectedTemplate) {
+                  handleEditTemplate(selectedTemplate);
+                }
+              }}
+              variant="contained"
+              startIcon={<EditIcon />}
+            >
+              Edit Template
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Template Dialog */}
+        <Dialog 
+          open={editTemplateDialogOpen} 
+          onClose={() => setEditTemplateDialogOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+          PaperProps={{
+            sx: { maxHeight: '90vh' }
+          }}
+        >
+          <DialogTitle>Edit Template</DialogTitle>
+          <DialogContent sx={{ overflow: 'auto' }}>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                label="Template Name"
+                value={templateFormData.name}
+                onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+              
+              <TextField
+                fullWidth
+                label="Description"
+                value={templateFormData.description}
+                onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+                multiline
+                rows={2}
+              />
+
+              <FormControl fullWidth required>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={templateFormData.category}
+                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, category: e.target.value }))}
+                  label="Category"
+                >
+                  {checklistService.getChecklistCategories().map(category => (
+                    <MenuItem key={category} value={category}>
+                      {checklistService.formatCategory(category)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Property Type</InputLabel>
+                <Select
+                  value={templateFormData.property_type}
+                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, property_type: e.target.value }))}
+                  label="Property Type"
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  {propertyService.getPropertyTypes().map(type => (
+                    <MenuItem key={type} value={type}>
+                      {propertyService.formatPropertyType(type)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Divider />
+              
+              <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle1">Checklist Items</Typography>
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleAddTemplateItem}
+                    size="small"
+                  >
+                    Add Item
+                  </Button>
+                </Box>
+                
+                {templateFormData.items.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+                    No items added yet. Click "Add Item" to create checklist items.
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {templateFormData.items.map((item, index) => (
+                      <Paper key={index} sx={{ p: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="Item Title"
+                              value={item.title}
+                              onChange={(e) => handleUpdateTemplateItem(index, 'title', e.target.value)}
+                              required
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="Description"
+                              value={item.description}
+                              onChange={(e) => handleUpdateTemplateItem(index, 'description', e.target.value)}
+                              multiline
+                              rows={2}
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Type</InputLabel>
+                              <Select
+                                value={item.item_type}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'item_type', e.target.value)}
+                                label="Type"
+                              >
+                                <MenuItem value="text">Text</MenuItem>
+                                <MenuItem value="number">Number</MenuItem>
+                                <MenuItem value="boolean">Yes/No</MenuItem>
+                                <MenuItem value="file">File</MenuItem>
+                                <MenuItem value="photo">Photo</MenuItem>
+                                <MenuItem value="signature">Signature</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Required</InputLabel>
+                              <Select
+                                value={item.is_required ? 'yes' : 'no'}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'is_required', e.target.value === 'yes')}
+                                label="Required"
+                              >
+                                <MenuItem value="yes">Yes</MenuItem>
+                                <MenuItem value="no">No</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Approval</InputLabel>
+                              <Select
+                                value={item.requires_approval ? 'yes' : 'no'}
+                                onChange={(e) => handleUpdateTemplateItem(index, 'requires_approval', e.target.value === 'yes')}
+                                label="Approval"
+                              >
+                                <MenuItem value="yes">Yes</MenuItem>
+                                <MenuItem value="no">No</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={1}>
+                            <IconButton
+                              onClick={() => handleRemoveTemplateItem(index)}
+                              color="error"
+                              size="small"
+                            >
+                              <RemoveIcon />
+                            </IconButton>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setEditTemplateDialogOpen(false); resetTemplateForm(); }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateTemplate} 
+              variant="contained"
+              disabled={formLoading || !templateFormData.name || !templateFormData.category || templateFormData.items.length === 0}
+            >
+              {formLoading ? <CircularProgress size={20} /> : 'Update Template'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog 
+          open={deleteDialogOpen} 
+          onClose={handleDeleteCancel}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Delete Checklist</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete this checklist?
+            </Typography>
+            {checklistToDelete && (
+              <Box mt={2}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Checklist:</strong> {checklistToDelete.template_name || `Checklist #${checklistToDelete.id}`}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Property:</strong> {checklistToDelete.property_name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Status:</strong> {checklistService.formatStatus(checklistToDelete.status)}
+                </Typography>
+              </Box>
+            )}
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              This action cannot be undone. All checklist data including responses, comments, and attachments will be permanently deleted.
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel}>Cancel</Button>
+            <Button 
+              onClick={handleDeleteConfirm} 
+              color="error"
+              variant="contained"
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? <CircularProgress size={20} /> : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Template Confirmation Dialog */}
+        <Dialog 
+          open={deleteTemplateDialogOpen} 
+          onClose={handleDeleteTemplateCancel}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Delete Template</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete this template?
+            </Typography>
+            {templateToDelete && (
+              <Box mt={2}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Template:</strong> {templateToDelete.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Category:</strong> {checklistService.formatCategory(templateToDelete.category)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Items:</strong> {templateToDelete.items?.length || 0}
+                </Typography>
+              </Box>
+            )}
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              This action cannot be undone. If this template is currently being used by any checklists, the deletion will fail.
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteTemplateCancel}>Cancel</Button>
+            <Button 
+              onClick={handleDeleteTemplateConfirm} 
+              color="error"
+              variant="contained"
+              disabled={deleteTemplateLoading}
+            >
+              {deleteTemplateLoading ? <CircularProgress size={20} /> : 'Delete'}
             </Button>
           </DialogActions>
         </Dialog>

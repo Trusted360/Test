@@ -211,13 +211,16 @@ class PropertyService {
           p.*,
           COALESCE(pc.pending_count, 0) as pending_checklists,
           COALESCE(pc.completed_count, 0) as completed_checklists,
-          COALESCE(cf.camera_count, 0) as camera_count
+          COALESCE(pc.total_count, 0) as checklist_count,
+          COALESCE(cf.camera_count, 0) as camera_count,
+          COALESCE(va.active_alerts, 0) as active_alerts
         FROM properties p
         LEFT JOIN (
           SELECT 
             property_id,
             COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
+            COUNT(*) as total_count
           FROM property_checklists 
           GROUP BY property_id
         ) pc ON p.id = pc.property_id
@@ -226,6 +229,13 @@ class PropertyService {
           FROM camera_feeds
           GROUP BY property_id
         ) cf ON p.id = cf.property_id
+        LEFT JOIN (
+          SELECT cf.property_id, COUNT(*) as active_alerts
+          FROM video_alerts va
+          JOIN camera_feeds cf ON va.camera_id = cf.id
+          WHERE va.status = 'active'
+          GROUP BY cf.property_id
+        ) va ON p.id = va.property_id
         WHERE p.tenant_id = ?
         ORDER BY p.created_at DESC
       `, [tenantId]);
