@@ -19,7 +19,7 @@ exports.up = async function(knex) {
     {
       name: 'Video Event Response - Security',
       description: 'Standard response checklist for security-related video events',
-      property_type: null, // Applies to all property types
+      category: 'video_event',
       is_active: true,
       created_by: adminUser.id,
       tenant_id: 'default'
@@ -27,7 +27,7 @@ exports.up = async function(knex) {
     {
       name: 'Video Event Response - Maintenance',
       description: 'Standard response checklist for maintenance-related video events (water leaks, equipment issues)',
-      property_type: null,
+      category: 'video_event',
       is_active: true,
       created_by: adminUser.id,
       tenant_id: 'default'
@@ -35,7 +35,7 @@ exports.up = async function(knex) {
     {
       name: 'Video Event Response - Emergency',
       description: 'Emergency response checklist for critical video events (fire, medical, etc)',
-      property_type: null,
+      category: 'video_event',
       is_active: true,
       created_by: adminUser.id,
       tenant_id: 'default'
@@ -43,8 +43,9 @@ exports.up = async function(knex) {
   ]).returning('id');
 
   console.log('✅ Created video event checklist templates');
-
-  // Get the template IDs
+  
+  // Create template-property type associations for all property types (since these apply to all)
+  const allPropertyTypes = await knex('property_types').select('id');
   const templates = await knex('checklist_templates')
     .whereIn('name', [
       'Video Event Response - Security',
@@ -53,9 +54,33 @@ exports.up = async function(knex) {
     ])
     .select('id', 'name');
 
-  const securityTemplate = templates.find(t => t.name === 'Video Event Response - Security');
-  const maintenanceTemplate = templates.find(t => t.name === 'Video Event Response - Maintenance');
-  const emergencyTemplate = templates.find(t => t.name === 'Video Event Response - Emergency');
+  const associations = [];
+  templates.forEach(template => {
+    allPropertyTypes.forEach(propertyType => {
+      associations.push({
+        template_id: template.id,
+        property_type_id: propertyType.id
+      });
+    });
+  });
+
+  if (associations.length > 0) {
+    await knex('template_property_types').insert(associations);
+    console.log('✅ Created template-property type associations for video event templates');
+  }
+
+  // Get the template IDs for creating checklist items
+  const videoEventTemplates = await knex('checklist_templates')
+    .whereIn('name', [
+      'Video Event Response - Security',
+      'Video Event Response - Maintenance',
+      'Video Event Response - Emergency'
+    ])
+    .select('id', 'name');
+
+  const securityTemplate = videoEventTemplates.find(t => t.name === 'Video Event Response - Security');
+  const maintenanceTemplate = videoEventTemplates.find(t => t.name === 'Video Event Response - Maintenance');
+  const emergencyTemplate = videoEventTemplates.find(t => t.name === 'Video Event Response - Emergency');
 
   // Insert checklist items for each template
   const checklistItems = [];

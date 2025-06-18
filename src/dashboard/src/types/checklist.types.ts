@@ -2,7 +2,6 @@ export interface ChecklistTemplate {
   id: number;
   name: string;
   description?: string;
-  property_type?: string;
   category: string;
   is_active: boolean;
   created_by: number;
@@ -142,7 +141,6 @@ export interface ChecklistAttachment {
 export interface CreateChecklistTemplateData {
   name: string;
   description?: string;
-  property_type?: string;
   category: string;
   items: CreateChecklistTemplateItemData[];
 }
@@ -181,6 +179,7 @@ export interface CompleteChecklistItemData {
 }
 
 export interface ChecklistFilters {
+  search?: string;
   status?: string;
   property_id?: number;
   assigned_to?: number;
@@ -190,7 +189,7 @@ export interface ChecklistFilters {
 }
 
 export interface ChecklistTemplateFilters {
-  property_type?: string;
+  search?: string;
   category?: string;
   is_active?: boolean;
 }

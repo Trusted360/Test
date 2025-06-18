@@ -136,7 +136,6 @@ const Checklists: React.FC = () => {
     name: '',
     description: '',
     category: '',
-    property_type: '',
     items: []
   });
   const [formLoading, setFormLoading] = useState(false);
@@ -250,7 +249,6 @@ const Checklists: React.FC = () => {
         name: templateFormData.name,
         description: templateFormData.description,
         category: templateFormData.category,
-        property_type: templateFormData.property_type,
         items: templateFormData.items
       };
       await checklistService.updateTemplate(selectedTemplate.id, updateData);
@@ -279,7 +277,6 @@ const Checklists: React.FC = () => {
       name: '',
       description: '',
       category: '',
-      property_type: '',
       items: []
     });
   };
@@ -388,7 +385,6 @@ const Checklists: React.FC = () => {
         name: fullTemplate.name,
         description: fullTemplate.description || '',
         category: fullTemplate.category,
-        property_type: fullTemplate.property_type || '',
         items
       });
       setEditTemplateDialogOpen(true);
@@ -541,9 +537,14 @@ const Checklists: React.FC = () => {
                     placeholder="Search checklists..."
                     value={checklistSearchTerm}
                     onChange={(e) => setChecklistSearchTerm(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        setChecklistFilters(prev => ({ ...prev, search: checklistSearchTerm }));
+                      }
+                    }}
                     InputProps={{
                       endAdornment: (
-                        <IconButton onClick={() => {}}>
+                        <IconButton onClick={() => setChecklistFilters(prev => ({ ...prev, search: checklistSearchTerm }))}>
                           <SearchIcon />
                         </IconButton>
                       )
@@ -587,7 +588,10 @@ const Checklists: React.FC = () => {
                 <Grid item xs={12} md={2}>
                   <Stack direction="row" spacing={1}>
                     <Button 
-                      onClick={() => setChecklistFilters({})} 
+                      onClick={() => {
+                        setChecklistFilters({});
+                        setChecklistSearchTerm('');
+                      }} 
                       variant="outlined" 
                       size="small"
                     >
@@ -743,9 +747,14 @@ const Checklists: React.FC = () => {
                     placeholder="Search templates..."
                     value={templateSearchTerm}
                     onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        setTemplateFilters(prev => ({ ...prev, search: templateSearchTerm }));
+                      }
+                    }}
                     InputProps={{
                       endAdornment: (
-                        <IconButton onClick={() => {}}>
+                        <IconButton onClick={() => setTemplateFilters(prev => ({ ...prev, search: templateSearchTerm }))}>
                           <SearchIcon />
                         </IconButton>
                       )
@@ -769,27 +778,13 @@ const Checklists: React.FC = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth>
-                    <InputLabel>Property Type</InputLabel>
-                    <Select
-                      value={templateFilters.property_type || ''}
-                      onChange={(e) => setTemplateFilters((prev: ChecklistTemplateFilters) => ({ ...prev, property_type: e.target.value || undefined }))}
-                      label="Property Type"
-                    >
-                      <MenuItem value="">All Types</MenuItem>
-                      {propertyService.getPropertyTypes().map(type => (
-                        <MenuItem key={type} value={type}>
-                          {propertyService.formatPropertyType(type)}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={6}>
                   <Stack direction="row" spacing={1}>
                     <Button 
-                      onClick={() => setTemplateFilters({})} 
+                      onClick={() => {
+                        setTemplateFilters({});
+                        setTemplateSearchTerm('');
+                      }} 
                       variant="outlined" 
                       size="small"
                     >
@@ -825,9 +820,6 @@ const Checklists: React.FC = () => {
                         </Box>
                         
                         <Stack spacing={1} mb={2}>
-                          <Typography variant="caption" color="text.secondary">
-                            Property Type: {template.property_type ? propertyService.formatPropertyType(template.property_type) : 'All Types'}
-                          </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Items: {template.items?.length || 0}
                           </Typography>
@@ -997,22 +989,6 @@ const Checklists: React.FC = () => {
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth>
-                <InputLabel>Property Type</InputLabel>
-                <Select
-                  value={templateFormData.property_type}
-                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, property_type: e.target.value }))}
-                  label="Property Type"
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  {propertyService.getPropertyTypes().map(type => (
-                    <MenuItem key={type} value={type}>
-                      {propertyService.formatPropertyType(type)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
               <Divider />
               
               <Box>
@@ -1157,20 +1133,11 @@ const Checklists: React.FC = () => {
                   <Typography variant="body1" color="text.secondary" paragraph>
                     {selectedTemplate.description}
                   </Typography>
-                  <Stack direction="row" spacing={2}>
-                    <Chip 
-                      label={checklistService.formatCategory(selectedTemplate.category)} 
-                      color="primary" 
-                      size="small" 
-                    />
-                    {selectedTemplate.property_type && (
-                      <Chip 
-                        label={propertyService.formatPropertyType(selectedTemplate.property_type)} 
-                        color="secondary" 
-                        size="small" 
-                      />
-                    )}
-                  </Stack>
+                  <Chip 
+                    label={checklistService.formatCategory(selectedTemplate.category)} 
+                    color="primary" 
+                    size="small" 
+                  />
                 </Box>
 
                 <Divider />
@@ -1268,22 +1235,6 @@ const Checklists: React.FC = () => {
                   {checklistService.getChecklistCategories().map(category => (
                     <MenuItem key={category} value={category}>
                       {checklistService.formatCategory(category)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Property Type</InputLabel>
-                <Select
-                  value={templateFormData.property_type}
-                  onChange={(e) => setTemplateFormData(prev => ({ ...prev, property_type: e.target.value }))}
-                  label="Property Type"
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  {propertyService.getPropertyTypes().map(type => (
-                    <MenuItem key={type} value={type}>
-                      {propertyService.formatPropertyType(type)}
                     </MenuItem>
                   ))}
                 </Select>

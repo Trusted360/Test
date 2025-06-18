@@ -8,25 +8,27 @@ class ChecklistService {
   // Template Management
   async getTemplates(tenantId, propertyType = null) {
     try {
-      let query = this.knex('checklist_templates')
+      let query = this.knex('checklist_templates as ct')
         .select(
-          'id',
-          'name',
-          'description',
-          'category',
-          'property_type',
-          'is_active',
-          'created_by',
-          'tenant_id',
-          'created_at',
-          'updated_at'
+          'ct.id',
+          'ct.name',
+          'ct.description',
+          'ct.category',
+          'ct.is_active',
+          'ct.created_by',
+          'ct.tenant_id',
+          'ct.created_at',
+          'ct.updated_at'
         )
-        .where('tenant_id', tenantId)
-        .where('is_active', true)
-        .orderBy('name');
+        .where('ct.tenant_id', tenantId)
+        .where('ct.is_active', true)
+        .orderBy('ct.name');
 
       if (propertyType) {
-        query = query.where('property_type', propertyType);
+        query = query
+          .join('template_property_types as tpt', 'ct.id', 'tpt.template_id')
+          .join('property_types as pt', 'tpt.property_type_id', 'pt.id')
+          .where('pt.code', propertyType);
       }
 
       const templates = await query;
@@ -75,7 +77,7 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type, category, items = [], created_by } = templateData;
+      const { name, description, property_type_ids = [], category, items = [], created_by } = templateData;
 
       // Create template
       const [template] = await trx('checklist_templates')
@@ -83,13 +85,21 @@ class ChecklistService {
           name,
           description,
           category: category || 'inspection', // Use provided category or default to 'inspection'
-          property_type,
           tenant_id: tenantId,
           created_by,
           created_at: new Date(),
           updated_at: new Date()
         })
         .returning('*');
+
+      // Create property type associations if provided
+      if (property_type_ids.length > 0) {
+        const associations = property_type_ids.map(propertyTypeId => ({
+          template_id: template.id,
+          property_type_id: propertyTypeId
+        }));
+        await trx('template_property_types').insert(associations);
+      }
 
       // Create template items
       if (items.length > 0) {
@@ -120,7 +130,7 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type, category, items = [] } = templateData;
+      const { name, description, property_type_ids = [], category, items = [] } = templateData;
 
       // Update template
       await trx('checklist_templates')
@@ -130,9 +140,21 @@ class ChecklistService {
           name,
           description,
           category: category || 'inspection', // Use provided category or default to 'inspection'
-          property_type,
           updated_at: new Date()
         });
+
+      // Update property type associations
+      // Delete existing associations
+      await trx('template_property_types').where('template_id', id).del();
+      
+      // Create new associations if provided
+      if (property_type_ids.length > 0) {
+        const associations = property_type_ids.map(propertyTypeId => ({
+          template_id: id,
+          property_type_id: propertyTypeId
+        }));
+        await trx('template_property_types').insert(associations);
+      }
 
       // Delete existing items and recreate
       await trx('checklist_items').where('template_id', id).del();

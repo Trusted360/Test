@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticateJWT } = require('../src/middleware/auth');
 
 // Import controllers
 const facilitiesController = require('../controllers/facilities.controller');
@@ -17,7 +17,7 @@ const checklistRoutes = require('./checklist.routes');
 router.use('/auth', require('./auth.routes'));
 
 // Protected routes
-router.use(authenticate);
+router.use(authenticateJWT);
 
 // Facility routes (replaces recipe routes)
 router.get('/facilities', facilitiesController.index);
@@ -77,6 +77,10 @@ router.get('/video/stats', videoController.getStats);
 
 router.get('/video/property/:propertyId/cameras', videoController.getCamerasForProperty);
 router.get('/video/property/:propertyId/alerts', videoController.getAlertsForProperty);
+router.get('/video/property/:propertyId/config', videoController.getPropertyVideoConfig);
+router.post('/video/property/:propertyId/demo-alert', videoController.generateDemoAlertForProperty);
+
+router.get('/video/alerts-with-checklists', videoController.getAlertsWithChecklists);
 
 router.post('/video/demo/generate-alert', videoController.generateDemoAlert);
 

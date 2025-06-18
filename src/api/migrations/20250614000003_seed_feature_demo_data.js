@@ -18,25 +18,30 @@ exports.up = async function(knex) {
   // SEED PROPERTIES
   const existingProperties = await knex('properties').select('id').limit(1);
   if (existingProperties.length === 0) {
+    // Get property type IDs for foreign key references
+    const commercialType = await knex('property_types').where('code', 'commercial').first();
+    const residentialType = await knex('property_types').where('code', 'residential').first();
+    const industrialType = await knex('property_types').where('code', 'industrial').first();
+    
     const propertyIds = await knex('properties').insert([
       {
         name: 'Downtown Office Complex',
         address: '123 Business Ave, Downtown, TX 75201',
-        property_type: 'commercial',
+        property_type_id: commercialType?.id,
         status: 'active',
         tenant_id: 'default'
       },
       {
         name: 'Riverside Apartments',
         address: '456 River St, Riverside, TX 75202',
-        property_type: 'residential',
+        property_type_id: residentialType?.id,
         status: 'active',
         tenant_id: 'default'
       },
       {
         name: 'Industrial Warehouse',
         address: '789 Industrial Blvd, Industrial District, TX 75203',
-        property_type: 'industrial',
+        property_type_id: industrialType?.id,
         status: 'active',
         tenant_id: 'default'
       }
@@ -56,7 +61,7 @@ exports.up = async function(knex) {
       {
         name: 'Monthly Safety Inspection',
         description: 'Comprehensive monthly safety and security inspection checklist',
-        property_type: 'commercial',
+        category: 'safety',
         is_active: true,
         created_by: adminUser.id,
         tenant_id: 'default'
@@ -64,7 +69,7 @@ exports.up = async function(knex) {
       {
         name: 'Quarterly Fire Safety Check',
         description: 'Fire safety equipment and emergency procedures verification',
-        property_type: null, // Applies to all property types
+        category: 'safety',
         is_active: true,
         created_by: adminUser.id,
         tenant_id: 'default'
@@ -72,7 +77,7 @@ exports.up = async function(knex) {
       {
         name: 'Residential Unit Inspection',
         description: 'Standard residential unit inspection for maintenance and safety',
-        property_type: 'residential',
+        category: 'inspection',
         is_active: true,
         created_by: adminUser.id,
         tenant_id: 'default'
@@ -80,6 +85,36 @@ exports.up = async function(knex) {
     ]).returning('id');
     
     console.log('✅ Created demo checklist templates');
+    
+    // Create template-property type associations
+    const commercialType = await knex('property_types').where('code', 'commercial').first();
+    const residentialType = await knex('property_types').where('code', 'residential').first();
+    
+    const templates = await knex('checklist_templates').select('id', 'name');
+    const safetyTemplate = templates.find(t => t.name === 'Monthly Safety Inspection');
+    const fireTemplate = templates.find(t => t.name === 'Quarterly Fire Safety Check');
+    const residentialTemplate = templates.find(t => t.name === 'Residential Unit Inspection');
+    
+    // Associate templates with property types
+    const associations = [];
+    if (safetyTemplate && commercialType) {
+      associations.push({ template_id: safetyTemplate.id, property_type_id: commercialType.id });
+    }
+    if (residentialTemplate && residentialType) {
+      associations.push({ template_id: residentialTemplate.id, property_type_id: residentialType.id });
+    }
+    // Fire safety applies to all property types - we'll add associations for all types
+    if (fireTemplate) {
+      const allPropertyTypes = await knex('property_types').select('id');
+      allPropertyTypes.forEach(pt => {
+        associations.push({ template_id: fireTemplate.id, property_type_id: pt.id });
+      });
+    }
+    
+    if (associations.length > 0) {
+      await knex('template_property_types').insert(associations);
+      console.log('✅ Created template-property type associations');
+    }
   }
 
   // Get template IDs and create checklist items

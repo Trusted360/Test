@@ -38,7 +38,8 @@ import {
   Tooltip,
   Tab,
   Tabs,
-  Snackbar
+  Snackbar,
+  Switch
 } from '@mui/material';
 import {
   Videocam as VideocamIcon,
@@ -203,8 +204,24 @@ const VideoAnalysis: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [checklistDialogOpen, setChecklistDialogOpen] = useState(false);
+  const [alertSettingsDialogOpen, setAlertSettingsDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
   const [checklistTemplates, setChecklistTemplates] = useState<any[]>([]);
+  const [alertSettings, setAlertSettings] = useState({
+    emailNotifications: true,
+    smsNotifications: false,
+    pushNotifications: true,
+    criticalOnly: false,
+    eventTypes: {
+      suspicious_activity: true,
+      water_leak: true,
+      door_left_open: true,
+      fire_alarm: true,
+      vehicle_accident: true,
+      person_detected: false,
+      animal_detected: false
+    }
+  });
   const [ticketForm, setTicketForm] = useState({
     title: '',
     description: '',
@@ -249,9 +266,11 @@ const VideoAnalysis: React.FC = () => {
 
   // Load checklist templates based on event type
   const getRelevantTemplates = (eventType: string) => {
-    // For now, return all active templates since we don't have event-specific templates yet
-    // In the future, we could add a 'event_types' field to templates to filter by
-    return checklistTemplates.filter(t => t.is_active !== false);
+    // Filter for video event response templates only
+    return checklistTemplates.filter(t => 
+      t.is_active !== false && 
+      t.name && t.name.startsWith('Video Event Response')
+    );
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -442,6 +461,21 @@ const VideoAnalysis: React.FC = () => {
     }
   };
 
+  const handleAlertSettings = () => {
+    setAlertSettingsDialogOpen(true);
+  };
+
+  const handleSaveAlertSettings = async () => {
+    try {
+      // In a real app, this would save to the backend
+      setSnackbar({ open: true, message: 'Alert settings saved successfully!', severity: 'success' });
+      setAlertSettingsDialogOpen(false);
+    } catch (err) {
+      console.error('Error saving alert settings:', err);
+      setSnackbar({ open: true, message: 'Failed to save alert settings', severity: 'error' });
+    }
+  };
+
   const filteredFeeds = videoFeeds.filter(feed => {
     if (filterSeverity !== 'all' && feed.severity !== filterSeverity) return false;
     if (filterStatus !== 'all' && feed.status !== filterStatus) return false;
@@ -474,7 +508,7 @@ const VideoAnalysis: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<NotificationIcon />}
-            onClick={() => {}}
+            onClick={() => handleAlertSettings()}
             color="primary"
           >
             Alert Settings
@@ -950,18 +984,6 @@ const VideoAnalysis: React.FC = () => {
                     {selectedFeed.event_description}
                   </Typography>
                 </Grid>
-                {selectedFeed.actions_taken && selectedFeed.actions_taken.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Actions Taken
-                    </Typography>
-                    {selectedFeed.actions_taken.map((action, idx) => (
-                      <Typography key={idx} variant="body2" gutterBottom>
-                        • {action}
-                      </Typography>
-                    ))}
-                  </Grid>
-                )}
               </Grid>
 
               <Divider sx={{ my: 3 }} />
@@ -1033,12 +1055,16 @@ const VideoAnalysis: React.FC = () => {
                 ) : (
                   getRelevantTemplates(selectedFeed?.event_type || '').map((template) => (
                     <MenuItem key={template.id} value={template.id.toString()}>
-                      {template.name}
-                      {template.description && (
-                        <Typography variant="caption" display="block" color="textSecondary">
-                          {template.description}
+                      <Box>
+                        <Typography variant="body1">
+                          {template.name}
                         </Typography>
-                      )}
+                        {template.description && (
+                          <Typography variant="caption" display="block" color="textSecondary" sx={{ mt: 0.5 }}>
+                            {template.description}
+                          </Typography>
+                        )}
+                      </Box>
                     </MenuItem>
                   ))
                 )}
@@ -1156,6 +1182,92 @@ const VideoAnalysis: React.FC = () => {
             disabled={!ticketForm.title || !ticketForm.description}
           >
             Create Ticket
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Alert Settings Dialog */}
+      <Dialog
+        open={alertSettingsDialogOpen}
+        onClose={() => setAlertSettingsDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Alert Settings</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Notification Preferences
+            </Typography>
+            <FormControl component="fieldset" sx={{ mb: 3 }}>
+              <Stack spacing={2}>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>Email Notifications</Typography>
+                  <Switch
+                    checked={alertSettings.emailNotifications}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertSettings({ ...alertSettings, emailNotifications: e.target.checked })}
+                  />
+                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>SMS Notifications</Typography>
+                  <Switch
+                    checked={alertSettings.smsNotifications}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertSettings({ ...alertSettings, smsNotifications: e.target.checked })}
+                  />
+                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>Push Notifications</Typography>
+                  <Switch
+                    checked={alertSettings.pushNotifications}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertSettings({ ...alertSettings, pushNotifications: e.target.checked })}
+                  />
+                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>Critical Events Only</Typography>
+                  <Switch
+                    checked={alertSettings.criticalOnly}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertSettings({ ...alertSettings, criticalOnly: e.target.checked })}
+                  />
+                </Box>
+              </Stack>
+            </FormControl>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="subtitle1" gutterBottom>
+              Event Type Alerts
+            </Typography>
+            <FormControl component="fieldset">
+              <Stack spacing={2}>
+                {Object.entries(alertSettings.eventTypes).map(([eventType, enabled]) => (
+                  <Box key={eventType} display="flex" alignItems="center" justifyContent="space-between">
+                    <Box display="flex" alignItems="center">
+                      {getEventIcon(eventType)}
+                      <Typography sx={{ ml: 2 }}>
+                        {eventType.replace(/_/g, ' ').charAt(0).toUpperCase() + eventType.replace(/_/g, ' ').slice(1)}
+                      </Typography>
+                    </Box>
+                    <Switch
+                      checked={enabled}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAlertSettings({
+                        ...alertSettings,
+                        eventTypes: {
+                          ...alertSettings.eventTypes,
+                          [eventType]: e.target.checked
+                        }
+                      })}
+                      disabled={alertSettings.criticalOnly}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAlertSettingsDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveAlertSettings} variant="contained">
+            Save Settings
           </Button>
         </DialogActions>
       </Dialog>

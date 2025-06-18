@@ -34,6 +34,9 @@ export class ChecklistService {
   async getTemplates(filters?: ChecklistTemplateFilters): Promise<{ data: ChecklistTemplate[]; count: number }> {
     const params = new URLSearchParams();
     
+    if (filters?.search) {
+      params.append('search', filters.search);
+    }
     if (filters?.property_type) {
       params.append('property_type', filters.property_type);
     }
@@ -123,6 +126,9 @@ export class ChecklistService {
   async getChecklists(filters?: ChecklistFilters): Promise<{ data: Checklist[]; count: number }> {
     const params = new URLSearchParams();
     
+    if (filters?.search) {
+      params.append('search', filters.search);
+    }
     if (filters?.status) {
       params.append('status', filters.status);
     }
@@ -334,6 +340,7 @@ export class ChecklistService {
       'cleaning',
       'equipment',
       'documentation',
+      'video_event',
       'other'
     ];
   }
@@ -379,6 +386,7 @@ export class ChecklistService {
       'cleaning': 'Cleaning',
       'equipment': 'Equipment',
       'documentation': 'Documentation',
+      'video_event': 'Video Event',
       'other': 'Other'
     };
     return categoryMap[category] || category;

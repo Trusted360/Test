@@ -7,6 +7,43 @@
  */
 exports.up = function(knex) {
   return Promise.resolve()
+    // Property types configuration table
+    .then(() => {
+      return knex.schema.hasTable('property_types').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('property_types', (table) => {
+            table.increments('id').primary();
+            table.string('code', 50).notNullable().unique();
+            table.string('name', 100).notNullable();
+            table.text('description');
+            table.boolean('is_active').defaultTo(true);
+            table.string('tenant_id', 50).notNullable().defaultTo('default');
+            table.timestamps(true, true);
+            
+            table.index(['tenant_id']);
+            table.index(['is_active']);
+          });
+        }
+      });
+    })
+    
+    // Insert default property types
+    .then(() => {
+      return knex('property_types').count('* as count').first().then(result => {
+        if (result.count === '0') {
+          return knex('property_types').insert([
+            { code: 'residential', name: 'Residential', description: 'Residential properties including homes, apartments, condos' },
+            { code: 'commercial', name: 'Commercial', description: 'Commercial properties including offices, retail spaces' },
+            { code: 'industrial', name: 'Industrial', description: 'Industrial properties including warehouses, factories' },
+            { code: 'mixed_use', name: 'Mixed Use', description: 'Properties with multiple use types' },
+            { code: 'hospitality', name: 'Hospitality', description: 'Hotels, motels, and other hospitality properties' },
+            { code: 'healthcare', name: 'Healthcare', description: 'Medical facilities, hospitals, clinics' },
+            { code: 'educational', name: 'Educational', description: 'Schools, universities, training facilities' }
+          ]);
+        }
+      });
+    })
+    
     // Properties table - core entity for checklist assignments
     .then(() => {
       return knex.schema.hasTable('properties').then(exists => {
@@ -15,14 +52,14 @@ exports.up = function(knex) {
             table.increments('id').primary();
             table.string('name', 255).notNullable();
             table.text('address');
-            table.string('property_type', 100); // residential, commercial, industrial, etc.
+            table.integer('property_type_id').references('id').inTable('property_types');
             table.string('status', 50).defaultTo('active'); // active, inactive, maintenance
             table.string('tenant_id', 50).notNullable().defaultTo('default');
             table.timestamps(true, true);
             
             // Indexes for efficient queries
             table.index(['tenant_id']);
-            table.index(['property_type']);
+            table.index(['property_type_id']);
             table.index(['status']);
             table.index(['tenant_id', 'status']);
           });
@@ -38,8 +75,7 @@ exports.up = function(knex) {
             table.increments('id').primary();
             table.string('name', 255).notNullable();
             table.text('description');
-            table.string('category', 100).defaultTo('inspection'); // security, safety, maintenance, compliance, inspection, etc.
-            table.string('property_type', 100); // filter templates by property type
+            table.string('category', 100).defaultTo('inspection'); // security, safety, maintenance, compliance, inspection, video_event, etc.
             table.boolean('is_active').defaultTo(true);
             table.integer('created_by').references('id').inTable('users');
             table.string('tenant_id', 50).notNullable().defaultTo('default');
@@ -48,10 +84,30 @@ exports.up = function(knex) {
             // Indexes
             table.index(['tenant_id']);
             table.index(['category']);
-            table.index(['property_type']);
             table.index(['is_active']);
             table.index(['created_by']);
             table.index(['tenant_id', 'is_active']);
+          });
+        }
+      });
+    })
+    
+    // Template property types association table
+    .then(() => {
+      return knex.schema.hasTable('template_property_types').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('template_property_types', (table) => {
+            table.increments('id').primary();
+            table.integer('template_id').notNullable().references('id').inTable('checklist_templates').onDelete('CASCADE');
+            table.integer('property_type_id').notNullable().references('id').inTable('property_types').onDelete('CASCADE');
+            table.timestamps(true, true);
+            
+            // Ensure unique combinations
+            table.unique(['template_id', 'property_type_id']);
+            
+            // Indexes
+            table.index(['template_id']);
+            table.index(['property_type_id']);
           });
         }
       });
@@ -67,6 +123,7 @@ exports.up = function(knex) {
             table.text('item_text').notNullable();
             table.string('item_type', 50).defaultTo('text'); // text, checkbox, file_upload, photo, signature
             table.boolean('is_required').defaultTo(false);
+            table.boolean('requires_approval').defaultTo(false);
             table.integer('sort_order').defaultTo(0);
             table.jsonb('config_json'); // Additional configuration for different item types
             
@@ -208,6 +265,8 @@ exports.down = function(knex) {
     .dropTableIfExists('checklist_responses')
     .dropTableIfExists('property_checklists')
     .dropTableIfExists('checklist_items')
+    .dropTableIfExists('template_property_types')
     .dropTableIfExists('checklist_templates')
-    .dropTableIfExists('properties');
+    .dropTableIfExists('properties')
+    .dropTableIfExists('property_types');
 };

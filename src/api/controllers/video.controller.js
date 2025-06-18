@@ -232,16 +232,137 @@ exports.getAlertById = async (req, res) => {
 exports.createAlert = async (req, res) => {
   try {
     const alertData = req.body;
+    
+    // Get camera and property information
+    const camera = await knex('camera_feeds as c')
+      .leftJoin('properties as p', 'c.property_id', 'p.id')
+      .leftJoin('property_types as pt', 'p.property_type_id', 'pt.id')
+      .where('c.id', alertData.camera_id)
+      .select(
+        'c.*',
+        'p.id as property_id',
+        'p.name as property_name',
+        'p.property_type_id',
+        'pt.code as property_type_code'
+      )
+      .first();
+
+    if (!camera) {
+      return res.status(400).json({
+        success: false,
+        message: 'Camera not found'
+      });
+    }
+
+    // Get alert type configuration
+    const alertType = await knex('alert_types')
+      .where('id', alertData.alert_type_id)
+      .first();
+
+    if (!alertType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Alert type not found'
+      });
+    }
+
+    // Create the alert with enhanced data
     const [alert] = await knex('video_alerts')
       .insert({
         ...alertData,
+        alert_data_json: {
+          ...alertData.alert_data_json,
+          property_id: camera.property_id,
+          property_name: camera.property_name,
+          property_type_code: camera.property_type_code,
+          camera_location: camera.location,
+          processed_at: new Date()
+        },
         created_at: new Date()
       })
       .returning('*');
 
+    // Auto-create service ticket if configured
+    if (alertType.auto_create_ticket) {
+      await knex('service_tickets').insert({
+        property_id: camera.property_id,
+        alert_id: alert.id,
+        title: `${alertType.name} - ${camera.name}`,
+        description: `Automated ticket created for ${alertType.name} alert at ${camera.property_name} (${camera.location})`,
+        priority: alertType.severity_level === 'critical' ? 'urgent' : 
+                 alertType.severity_level === 'high' ? 'high' : 'medium',
+        status: 'open'
+      });
+    }
+
+    // Auto-create checklist if configured
+    if (alertType.auto_create_checklist) {
+      // Find appropriate video event checklist template based on alert type
+      let templateCategory = 'video_event';
+      if (alertType.name.toLowerCase().includes('fire') || 
+          alertType.name.toLowerCase().includes('smoke') ||
+          alertType.severity_level === 'critical') {
+        templateCategory = 'Video Event Response - Emergency';
+      } else if (alertType.name.toLowerCase().includes('unauthorized') ||
+                 alertType.name.toLowerCase().includes('security')) {
+        templateCategory = 'Video Event Response - Security';
+      } else if (alertType.name.toLowerCase().includes('equipment') ||
+                 alertType.name.toLowerCase().includes('malfunction')) {
+        templateCategory = 'Video Event Response - Maintenance';
+      }
+
+      // Get the appropriate template
+      const template = await knex('checklist_templates as ct')
+        .leftJoin('template_property_types as tpt', 'ct.id', 'tpt.template_id')
+        .where('ct.name', templateCategory)
+        .where('tpt.property_type_id', camera.property_type_id)
+        .where('ct.is_active', true)
+        .select('ct.*')
+        .first();
+
+      if (template) {
+        // Create property checklist
+        const [checklist] = await knex('property_checklists')
+          .insert({
+            property_id: camera.property_id,
+            template_id: template.id,
+            assigned_to: null, // Will need to be assigned manually or via business rules
+            status: 'pending',
+            due_date: new Date(Date.now() + 24 * 60 * 60 * 1000) // Due in 24 hours
+          })
+          .returning('*');
+
+        // Link the alert to the generated checklist
+        await knex('alert_generated_checklists').insert({
+          alert_id: alert.id,
+          checklist_id: checklist.id,
+          auto_generated: true,
+          trigger_reason: `Auto-generated from ${alertType.name} alert`
+        });
+      }
+    }
+
+    // Return enhanced alert data with property information
+    const enhancedAlert = await knex('video_alerts as va')
+      .leftJoin('camera_feeds as c', 'va.camera_id', 'c.id')
+      .leftJoin('properties as p', 'c.property_id', 'p.id')
+      .leftJoin('alert_types as at', 'va.alert_type_id', 'at.id')
+      .where('va.id', alert.id)
+      .select(
+        'va.*',
+        'c.name as camera_name',
+        'c.location as camera_location',
+        'p.id as property_id',
+        'p.name as property_name',
+        'p.address as property_address',
+        'at.name as alert_type_name'
+      )
+      .first();
+
     res.status(201).json({
       success: true,
-      data: alert
+      data: enhancedAlert,
+      message: 'Alert created and processed successfully'
     });
   } catch (error) {
     console.error('Error creating alert:', error);
@@ -545,6 +666,235 @@ exports.generateDemoAlert = async (req, res) => {
       success: false,
       message: 'Failed to generate demo alert',
       error: error.message 
+    });
+  }
+};
+
+// Property Configuration Endpoints
+exports.getPropertyVideoConfig = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    
+    // Get property details with type information
+    const property = await knex('properties as p')
+      .leftJoin('property_types as pt', 'p.property_type_id', 'pt.id')
+      .where('p.id', propertyId)
+      .select(
+        'p.*',
+        'pt.code as property_type_code',
+        'pt.name as property_type_name'
+      )
+      .first();
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found'
+      });
+    }
+
+    // Get cameras for this property
+    const cameras = await knex('camera_feeds')
+      .where('property_id', propertyId)
+      .select('*');
+
+    // Get available video event checklist templates for this property type
+    const availableTemplates = await knex('checklist_templates as ct')
+      .leftJoin('template_property_types as tpt', 'ct.id', 'tpt.template_id')
+      .where('tpt.property_type_id', property.property_type_id)
+      .where('ct.category', 'video_event')
+      .where('ct.is_active', true)
+      .select('ct.*');
+
+    // Get alert types that can auto-create checklists
+    const alertTypesWithChecklists = await knex('alert_types')
+      .where('auto_create_checklist', true)
+      .where('is_active', true)
+      .select('*');
+
+    // Get recent alerts for this property
+    const recentAlerts = await knex('video_alerts as va')
+      .leftJoin('camera_feeds as c', 'va.camera_id', 'c.id')
+      .leftJoin('alert_types as at', 'va.alert_type_id', 'at.id')
+      .where('c.property_id', propertyId)
+      .select(
+        'va.*',
+        'c.name as camera_name',
+        'at.name as alert_type_name'
+      )
+      .orderBy('va.created_at', 'desc')
+      .limit(10);
+
+    res.json({
+      success: true,
+      data: {
+        property,
+        cameras,
+        available_templates: availableTemplates,
+        alert_types_with_checklists: alertTypesWithChecklists,
+        recent_alerts: recentAlerts
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching property video config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch property video configuration',
+      error: error.message
+    });
+  }
+};
+
+// Get alerts with generated checklists
+exports.getAlertsWithChecklists = async (req, res) => {
+  try {
+    const { property_id, status } = req.query;
+    
+    let query = knex('video_alerts as va')
+      .leftJoin('camera_feeds as c', 'va.camera_id', 'c.id')
+      .leftJoin('properties as p', 'c.property_id', 'p.id')
+      .leftJoin('alert_types as at', 'va.alert_type_id', 'at.id')
+      .leftJoin('alert_generated_checklists as agc', 'va.id', 'agc.alert_id')
+      .leftJoin('property_checklists as pc', 'agc.checklist_id', 'pc.id')
+      .leftJoin('checklist_templates as ct', 'pc.template_id', 'ct.id')
+      .select(
+        'va.*',
+        'c.name as camera_name',
+        'c.location as camera_location',
+        'p.id as property_id',
+        'p.name as property_name',
+        'at.name as alert_type_name',
+        'at.severity_level',
+        'pc.id as checklist_id',
+        'pc.status as checklist_status',
+        'pc.due_date as checklist_due_date',
+        'ct.name as checklist_template_name',
+        'agc.auto_generated',
+        'agc.trigger_reason'
+      )
+      .orderBy('va.created_at', 'desc');
+
+    if (property_id) {
+      query = query.where('c.property_id', property_id);
+    }
+    
+    if (status) {
+      query = query.where('va.status', status);
+    }
+
+    const alerts = await query;
+    
+    res.json({
+      success: true,
+      data: alerts,
+      count: alerts.length
+    });
+  } catch (error) {
+    console.error('Error fetching alerts with checklists:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch alerts with checklists',
+      error: error.message
+    });
+  }
+};
+
+// Enhanced demo alert generation with property context
+exports.generateDemoAlertForProperty = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    const { alert_type_id } = req.body;
+
+    // Get property and its cameras
+    const property = await knex('properties as p')
+      .leftJoin('property_types as pt', 'p.property_type_id', 'pt.id')
+      .where('p.id', propertyId)
+      .select('p.*', 'pt.code as property_type_code')
+      .first();
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found'
+      });
+    }
+
+    // Get a camera for this property
+    const camera = await knex('camera_feeds')
+      .where('property_id', propertyId)
+      .where('status', 'active')
+      .orderByRaw('RANDOM()')
+      .first();
+
+    if (!camera) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active cameras found for this property'
+      });
+    }
+
+    // Get alert type (use provided or random)
+    let alertType;
+    if (alert_type_id) {
+      alertType = await knex('alert_types')
+        .where('id', alert_type_id)
+        .where('is_active', true)
+        .first();
+    } else {
+      alertType = await knex('alert_types')
+        .where('is_active', true)
+        .orderByRaw('RANDOM()')
+        .first();
+    }
+
+    if (!alertType) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active alert types found'
+      });
+    }
+
+    // Use the enhanced createAlert logic
+    const alertData = {
+      camera_id: camera.id,
+      alert_type_id: alertType.id,
+      severity: alertType.severity_level,
+      status: 'active',
+      alert_data_json: {
+        demo: true,
+        generated_at: new Date(),
+        description: `Demo ${alertType.name} alert for ${property.name}`,
+        property_context: {
+          property_id: property.id,
+          property_name: property.name,
+          property_type: property.property_type_code
+        }
+      }
+    };
+
+    // Create alert using the enhanced createAlert function
+    const mockReq = { body: alertData };
+    const mockRes = {
+      status: (code) => ({
+        json: (data) => {
+          res.status(code).json({
+            ...data,
+            message: `Demo alert generated for ${property.name}`
+          });
+        }
+      }),
+      json: (data) => res.json(data)
+    };
+
+    // Call the enhanced createAlert function
+    await exports.createAlert(mockReq, mockRes);
+
+  } catch (error) {
+    console.error('Error generating demo alert for property:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate demo alert for property',
+      error: error.message
     });
   }
 };
