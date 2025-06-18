@@ -14,7 +14,11 @@ import {
 import {
   Dashboard as DashboardIcon,
   Settings as SettingsIcon,
-  Logout as LogoutIcon
+  AdminPanelSettings as AdminIcon,
+  Logout as LogoutIcon,
+  Business as BusinessIcon,
+  Assignment as ChecklistIcon,
+  Videocam as VideoIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -29,12 +33,50 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  // Enhanced admin access check with better debugging
+  const hasAdminAccess = React.useMemo(() => {
+    const adminLevel = user?.admin_level;
+    const hasAccess = adminLevel && adminLevel !== 'none';
+    
+    // Enhanced debug logging
+    console.log('=== SIDEBAR DEBUG ===');
+    console.log('Full user object:', user);
+    console.log('user?.admin_level:', adminLevel);
+    console.log('typeof user?.admin_level:', typeof adminLevel);
+    console.log('adminLevel !== "none":', adminLevel !== 'none');
+    console.log('hasAccess result:', hasAccess);
+    console.log('localStorage user:', localStorage.getItem('user'));
+    
+    // Try to parse localStorage directly as fallback
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        console.log('Parsed localStorage user:', parsedUser);
+        console.log('Parsed user admin_level:', parsedUser.admin_level);
+      }
+    } catch (e) {
+      console.log('Error parsing localStorage user:', e);
+    }
+    
+    console.log('==================');
+    
+    return hasAccess;
+  }, [user?.admin_level]);
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Properties', icon: <BusinessIcon />, path: '/properties' },
+    { text: 'Checklists', icon: <ChecklistIcon />, path: '/checklists' },
+    { text: 'Video Analysis', icon: <VideoIcon />, path: '/video' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    ...(hasAdminAccess ? [{ text: 'Admin Portal', icon: <AdminIcon />, path: '/admin' }] : []),
   ];
+
+  // Additional debug logging for menu items
+  console.log('Menu items:', menuItems.map(item => item.text));
 
   const handleLogout = () => {
     logout();

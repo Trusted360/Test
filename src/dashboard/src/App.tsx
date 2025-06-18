@@ -12,6 +12,17 @@ const Login = lazy(() => import('@pages/Auth/Login'));
 const Register = lazy(() => import('@pages/Auth/Register'));
 const NotFound = lazy(() => import('@pages/NotFound'));
 const Settings = lazy(() => import('@pages/Settings'));
+const Properties = lazy(() => import('@pages/Properties'));
+const Checklists = lazy(() => import('@pages/Checklists'));
+const ChecklistDetail = lazy(() => import('@pages/Checklists/ChecklistDetail'));
+const VideoAnalysis = lazy(() => import('@pages/Video'));
+
+// Admin pages
+const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
+const SqlConsole = lazy(() => import('@pages/Admin/SqlConsole'));
+const SystemHealth = lazy(() => import('@pages/Admin/SystemHealth'));
+const LogViewer = lazy(() => import('@pages/Admin/LogViewer'));
+const SchemaExplorer = lazy(() => import('@pages/Admin/SchemaExplorer'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -69,10 +80,90 @@ function App() {
             }
           />
           <Route
+            path="/properties"
+            element={
+              <ProtectedRoute>
+                <Properties />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists"
+            element={
+              <ProtectedRoute>
+                <Checklists />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists/:id"
+            element={
+              <ProtectedRoute>
+                <ChecklistDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists/:id/edit"
+            element={
+              <ProtectedRoute>
+                <ChecklistDetail editMode={true} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/video"
+            element={
+              <ProtectedRoute>
+                <VideoAnalysis />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/settings"
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sql"
+            element={
+              <ProtectedRoute>
+                <SqlConsole />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/health"
+            element={
+              <ProtectedRoute>
+                <SystemHealth />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/logs"
+            element={
+              <ProtectedRoute>
+                <LogViewer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/schema"
+            element={
+              <ProtectedRoute>
+                <SchemaExplorer />
               </ProtectedRoute>
             }
           />

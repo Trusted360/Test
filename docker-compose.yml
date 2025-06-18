@@ -122,14 +122,14 @@ services:
       context: ./src/dashboard
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=/api
+        - VITE_API_URL=http://localhost:3001/api
     container_name: trusted360-web
     depends_on:
       - api
     ports:
       - "8088:80"
     environment:
-      - VITE_API_URL=/api
+      - VITE_API_URL=http://localhost:3001/api
       - NODE_ENV=production
     networks:
       - trusted360-network

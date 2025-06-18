@@ -5,6 +5,14 @@ const authRoutesFn = require('./auth.routes'); // Renamed to indicate it's a fun
 const ollamaRoutes = require('./ollama.routes');
 const notificationsRoutes = require('./notifications.routes');
 const tagRoutes = require('./tag.routes');
+const adminRoutes = require('./admin');
+const propertyRoutes = require('./property.routes');
+const checklistRoutes = require('./checklist.routes');
+const videoRoutes = require('./video.routes');
+const chatRoutes = require('./chat.routes');
+
+// Import middleware
+const { authenticateJWT, authMiddleware } = require('../middleware/auth');
 
 module.exports = function(services) { // Function that accepts services
   const router = express.Router();
@@ -15,6 +23,21 @@ module.exports = function(services) { // Function that accepts services
   router.use('/ollama', ollamaRoutes);
   router.use('/notifications', notificationsRoutes);
   router.use('/tags', tagRoutes);
+  
+  // Property routes (protected by session-aware auth middleware)
+  router.use('/properties', authMiddleware(services.sessionModel, services.userModel), propertyRoutes(services));
+  
+  // Checklist routes (protected by session-aware auth middleware)
+  router.use('/checklists', authMiddleware(services.sessionModel, services.userModel), checklistRoutes(services));
+  
+  // Video analysis routes (protected by session-aware auth middleware)
+  router.use('/video', authMiddleware(services.sessionModel, services.userModel), videoRoutes(services));
+  
+  // Chat routes (protected by session-aware auth middleware)
+  router.use('/chat', authMiddleware(services.sessionModel, services.userModel), chatRoutes(services));
+  
+  // Admin routes (protected by session-aware auth middleware)
+  router.use('/admin', authMiddleware(services.sessionModel, services.userModel), adminRoutes);
 
   // API version and status
   router.get('/', (req, res) => {
