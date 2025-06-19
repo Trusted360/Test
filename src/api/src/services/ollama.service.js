@@ -6,12 +6,46 @@ const { mapOllamaError, ResponseParsingError } = require('../utils/error-handler
 
 // Create axios instance for Ollama API
 const ollamaClient = axios.create({
-  baseURL: config.ollama.url,
+  baseURL: process.env.OLLAMA_URL || config.ollama?.url || 'http://localhost:11434',
   timeout: 60000, // 60 seconds timeout for LLM operations
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Model configurations for different environments
+const MODEL_CONFIGS = {
+  demo: {
+    primary: process.env.OLLAMA_MODEL_PRIMARY || 'llama3.2:3b-instruct-q4_K_M',
+    fallback: process.env.OLLAMA_MODEL_FALLBACK || 'llama3.2:3b-instruct-q4_K_M',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9,
+      num_ctx: parseInt(process.env.CHAT_CONTEXT_WINDOW) || 8192,
+      num_gpu: 999,
+      num_thread: 4,
+      f16_kv: true,
+      use_mlock: true
+    }
+  },
+  production: {
+    primary: 'llama3.2:3b-instruct-q4_K_M',
+    fallback: 'gemma2:2b-instruct-q4_K_M',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9,
+      num_ctx: 8192,
+      num_gpu: 99,
+      num_thread: 4
+    }
+  }
+};
+
+// Get current environment configuration
+function getModelConfig() {
+  const env = process.env.NODE_ENV === 'production' ? 'production' : 'demo';
+  return MODEL_CONFIGS[env];
+}
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -705,10 +739,175 @@ function parsePreferenceResponse(responseText) {
   }
 }
 
+/**
+ * Generate context-aware response for Trusted360
+ */
+async function generateTrusted360Response(prompt, context = {}, options = {}) {
+  try {
+    const modelConfig = getModelConfig();
+    const model = options.model || modelConfig.primary;
+    
+    // Enhanced prompt with Trusted360 context
+    const enhancedPrompt = buildTrusted360Prompt(prompt, context);
+    
+    // Merge options with model config
+    const mergedOptions = {
+      ...modelConfig.options,
+      ...options,
+      model
+    };
+    
+    const response = await withRetry(async () => {
+      return await ollamaClient.post('/api/generate', {
+        model,
+        prompt: enhancedPrompt,
+        stream: false,
+        options: mergedOptions
+      });
+    });
+    
+    if (!response.data || !response.data.response) {
+      throw new ResponseParsingError('Invalid response from Ollama');
+    }
+    
+    // Parse for actions if needed
+    const parsedResponse = parseResponseForActions(response.data.response);
+    
+    return parsedResponse;
+  } catch (error) {
+    logger.error('Error generating Trusted360 response:', error);
+    throw mapOllamaError(error);
+  }
+}
+
+/**
+ * Build Trusted360-specific prompt
+ */
+function buildTrusted360Prompt(userMessage, context) {
+  let prompt = `You are an AI assistant for Trusted360, a security audit and property management platform for self-storage facilities.
+
+SYSTEM CAPABILITIES:
+- Navigate to different pages in the application
+- Create alerts and checklists
+- Access property information and security data
+- Analyze video alerts and maintenance issues
+- Generate reports and summaries
+
+CURRENT CONTEXT:
+`;
+
+  // Add all properties context
+  if (context.properties && context.properties.length > 0) {
+    prompt += `CONFIGURED PROPERTIES (${context.properties.length}):
+${context.properties.map(p => `- ${p.name}: ${p.address} (${p.status})`).join('\n')}
+
+`;
+  }
+
+  // Add all templates context
+  if (context.templates && context.templates.length > 0) {
+    prompt += `AVAILABLE TEMPLATES (${context.templates.length}):
+${context.templates.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+
+`;
+  }
+
+  // Add specific property context if available
+  if (context.property) {
+    prompt += `CURRENT PROPERTY FOCUS:
+Property: ${context.property.name}
+Address: ${context.property.address}
+Status: ${context.property.status}
+
+`;
+  }
+
+  // Add recent activity context
+  if (context.checklists && context.checklists.length > 0) {
+    prompt += `RECENT CHECKLISTS (${context.checklists.length}):
+${context.checklists.map(c => {
+      const propertyInfo = c.property_name ? ` at ${c.property_name}` : '';
+      return `- ${c.template_name}: ${c.status}${propertyInfo}`;
+    }).join('\n')}
+
+`;
+  }
+
+  if (context.alerts && context.alerts.length > 0) {
+    prompt += `RECENT ALERTS (${context.alerts.length}):
+${context.alerts.map(a => {
+      const propertyInfo = a.property_name ? ` at ${a.property_name}` : '';
+      return `- ${a.alert_type_name}: ${a.status}${propertyInfo}`;
+    }).join('\n')}
+
+`;
+  }
+
+  // Add conversation history if available
+  if (context.conversation_history && context.conversation_history.length > 0) {
+    prompt += `RECENT CONVERSATION:
+${context.conversation_history.map(msg => {
+      const sender = msg.sender_type === 'user' ? 'User' : 'Assistant';
+      return `${sender}: ${msg.message_text}`;
+    }).join('\n')}
+
+`;
+  }
+
+  prompt += `RESPONSE GUIDELINES:
+- Be professional and concise
+- Reference specific data when available (properties, templates, checklists, alerts)
+- When asked about properties, list the actual configured properties
+- When asked about templates, list the actual available templates
+- Suggest actionable next steps
+- If you can perform an action, indicate it clearly
+- Use the format [ACTION: action_type] for executable actions
+
+AVAILABLE ACTIONS:
+- [ACTION: navigate] - Navigate to a specific page
+- [ACTION: create_alert] - Create a new alert
+- [ACTION: create_checklist] - Create a new checklist
+- [ACTION: generate_report] - Generate a report
+
+USER MESSAGE: ${userMessage}
+
+RESPONSE:`;
+
+  return prompt;
+}
+
+/**
+ * Parse response for executable actions
+ */
+function parseResponseForActions(responseText) {
+  const actionRegex = /\[ACTION:\s*(\w+)(?:\s*-\s*(.+?))?\]/gi;
+  const actions = [];
+  let match;
+
+  while ((match = actionRegex.exec(responseText)) !== null) {
+    actions.push({
+      type: match[1].toLowerCase(),
+      description: match[2] || '',
+      raw: match[0]
+    });
+  }
+
+  // Clean response text
+  const cleanText = responseText.replace(actionRegex, '').trim();
+
+  return {
+    text: cleanText,
+    actions: actions,
+    hasActions: actions.length > 0
+  };
+}
+
 module.exports = {
   getModels,
   generateMealPlan,
   generateRecipe,
   analyzeDietaryPreferences,
-  generateText
+  generateText,
+  generateTrusted360Response,
+  getModelConfig
 };

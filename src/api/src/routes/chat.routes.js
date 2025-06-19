@@ -18,7 +18,7 @@ module.exports = function(services) {
   router.get('/conversations', async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
       const { property_id, status } = req.query;
 
       const conversations = await ChatService.getConversations(
@@ -47,7 +47,7 @@ module.exports = function(services) {
   router.post('/conversations', async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
       const { property_id, title } = req.body;
 
       const conversation = await ChatService.createConversation(
@@ -76,7 +76,7 @@ module.exports = function(services) {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
 
       const conversation = await ChatService.getConversationById(
         conversationId,
@@ -109,7 +109,7 @@ module.exports = function(services) {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
       const { limit = 50, offset = 0 } = req.query;
 
       const messages = await ChatService.getConversationHistory(
@@ -150,17 +150,17 @@ module.exports = function(services) {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
-      const { message } = req.body;
+      const tenantId = req.user.tenantId;
+      const { message_text } = req.body;
 
-      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      if (!message_text || typeof message_text !== 'string' || message_text.trim().length === 0) {
         return res.status(400).json({
           success: false,
           error: 'Message text is required'
         });
       }
 
-      if (message.length > 4000) {
+      if (message_text.length > 4000) {
         return res.status(400).json({
           success: false,
           error: 'Message too long (maximum 4000 characters)'
@@ -169,7 +169,7 @@ module.exports = function(services) {
 
       const result = await ChatService.sendMessage(
         conversationId,
-        message.trim(),
+        message_text.trim(),
         userId,
         tenantId
       );
@@ -209,7 +209,7 @@ module.exports = function(services) {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
 
       const conversation = await ChatService.archiveConversation(
         conversationId,
@@ -243,7 +243,7 @@ module.exports = function(services) {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
 
       const deleted = await ChatService.deleteConversation(
         conversationId,
@@ -281,7 +281,7 @@ module.exports = function(services) {
    */
   router.post('/knowledge', async (req, res, next) => {
     try {
-      const tenantId = req.user.tenant_id;
+      const tenantId = req.user.tenantId;
       const { content_type, content_id, content_text, tags = [] } = req.body;
 
       if (!content_type || !content_id || !content_text) {
@@ -362,17 +362,17 @@ module.exports = function(services) {
   router.post('/quick-message', async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const tenantId = req.user.tenant_id;
-      const { message, property_id } = req.body;
+      const tenantId = req.user.tenantId;
+      const { message_text, property_id } = req.body;
 
-      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      if (!message_text || typeof message_text !== 'string' || message_text.trim().length === 0) {
         return res.status(400).json({
           success: false,
           error: 'Message text is required'
         });
       }
 
-      if (message.length > 4000) {
+      if (message_text.length > 4000) {
         return res.status(400).json({
           success: false,
           error: 'Message too long (maximum 4000 characters)'
@@ -390,7 +390,7 @@ module.exports = function(services) {
       const context = await ChatService.getContextForConversation(tempConversation, tenantId);
 
       // Generate AI response without saving to database
-      const prompt = ChatService.buildContextAwarePrompt(message.trim(), context, []);
+      const prompt = ChatService.buildContextAwarePrompt(message_text.trim(), context, []);
       
       const ollamaService = require('../services/ollama.service');
       const aiResponse = await ollamaService.generateText(prompt, {
@@ -402,7 +402,7 @@ module.exports = function(services) {
       res.json({
         success: true,
         data: {
-          user_message: message.trim(),
+          user_message: message_text.trim(),
           ai_response: aiResponse,
           context_summary: context.summary,
           timestamp: new Date().toISOString()

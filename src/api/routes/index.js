@@ -14,6 +14,7 @@ const propertiesController = require('../controllers/properties.controller');
 
 // Import routes
 const checklistRoutes = require('./checklist.routes');
+const chatRoutes = require('./chat.routes');
 
 // Authentication routes (keep from Simmer)
 router.use('/auth', require('./auth.routes'));
@@ -99,6 +100,9 @@ router.post('/video/events', videoController.processEvent);
 
 // Checklist routes
 router.use('/checklists', checklistRoutes);
+
+// Chat routes
+router.use('/chat', chatRoutes);
 
 // Settings routes
 router.get('/settings/global', settingsController.getGlobalSettings);

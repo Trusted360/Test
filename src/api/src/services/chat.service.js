@@ -263,11 +263,25 @@ class ChatService {
     try {
       const context = {
         property: null,
+        properties: [],
         checklists: [],
         alerts: [],
+        templates: [],
         knowledge: [],
         summary: {}
       };
+
+      // Always get all properties for the tenant (for general queries)
+      context.properties = await this.knex('properties')
+        .select(['id', 'name', 'address', 'status'])
+        .where('tenant_id', tenantId)
+        .orderBy('name');
+
+      // Always get all checklist templates (for template queries)
+      context.templates = await this.knex('checklist_templates')
+        .select(['id', 'name', 'description'])
+        .where('tenant_id', tenantId)
+        .orderBy('name');
 
       // Get property context if available
       if (conversation.property_id) {
@@ -302,6 +316,34 @@ class ChatService {
           .where('video_alerts.tenant_id', tenantId)
           .orderBy('video_alerts.created_at', 'desc')
           .limit(10);
+      } else {
+        // If no specific property, get recent checklists and alerts across all properties
+        context.checklists = await this.knex('property_checklists')
+          .select([
+            'property_checklists.*',
+            'checklist_templates.name as template_name',
+            'checklist_templates.description as template_description',
+            'properties.name as property_name'
+          ])
+          .leftJoin('checklist_templates', 'property_checklists.template_id', 'checklist_templates.id')
+          .leftJoin('properties', 'property_checklists.property_id', 'properties.id')
+          .where('property_checklists.tenant_id', tenantId)
+          .orderBy('property_checklists.created_at', 'desc')
+          .limit(10);
+
+        context.alerts = await this.knex('video_alerts')
+          .select([
+            'video_alerts.*',
+            'alert_types.name as alert_type_name',
+            'alert_types.description as alert_type_description',
+            'properties.name as property_name'
+          ])
+          .leftJoin('camera_feeds', 'video_alerts.camera_id', 'camera_feeds.id')
+          .leftJoin('properties', 'camera_feeds.property_id', 'properties.id')
+          .leftJoin('alert_types', 'video_alerts.alert_type_id', 'alert_types.id')
+          .where('video_alerts.tenant_id', tenantId)
+          .orderBy('video_alerts.created_at', 'desc')
+          .limit(15);
       }
 
       // Get relevant knowledge base entries
@@ -318,7 +360,9 @@ class ChatService {
 
       // Create summary for AI context
       context.summary = {
-        property_name: context.property?.name || 'No specific property',
+        property_name: context.property?.name || 'General conversation',
+        total_properties: context.properties.length,
+        total_templates: context.templates.length,
         recent_checklists: context.checklists.length,
         recent_alerts: context.alerts.length,
         knowledge_entries: context.knowledge.length,
@@ -335,8 +379,10 @@ class ChatService {
       logger.error('Error getting conversation context:', error);
       return {
         property: null,
+        properties: [],
         checklists: [],
         alerts: [],
+        templates: [],
         knowledge: [],
         summary: { error: 'Failed to load context' }
       };
@@ -344,7 +390,7 @@ class ChatService {
   }
 
   /**
-   * Generate context-aware AI response
+   * Generate context-aware AI response using enhanced Ollama service
    * @param {string} userMessage - User's message
    * @param {Object} context - Conversation context
    * @param {number} conversationId - Conversation ID
@@ -353,7 +399,7 @@ class ChatService {
    */
   async generateContextAwareResponse(userMessage, context, conversationId, tenantId) {
     try {
-      // Get recent conversation history for context
+      // Get recent conversation history
       const recentMessages = await this.knex('chat_messages')
         .select(['sender_type', 'message_text'])
         .where('conversation_id', conversationId)
@@ -361,17 +407,32 @@ class ChatService {
         .orderBy('created_at', 'desc')
         .limit(10);
 
-      // Build context-aware prompt
-      const prompt = this.buildContextAwarePrompt(userMessage, context, recentMessages);
+      // Build enhanced context
+      const enhancedContext = {
+        ...context,
+        conversation_history: recentMessages.reverse()
+      };
 
-      // Generate response using existing OllamaService
-      const response = await ollamaService.generateText(prompt, {
-        temperature: 0.7,
-        max_tokens: 1024,
-        timeout: 30000
-      });
+      // Use enhanced Ollama service
+      const response = await ollamaService.generateTrusted360Response(
+        userMessage,
+        enhancedContext,
+        {
+          temperature: 0.7,
+          max_tokens: 1024
+        }
+      );
 
-      return response;
+      // Handle actions if present
+      if (response.hasActions) {
+        // Log actions for potential execution
+        logger.info('AI suggested actions:', {
+          conversationId,
+          actions: response.actions
+        });
+      }
+
+      return response.text;
     } catch (error) {
       logger.error('Error generating context-aware response:', error);
       throw new Error('Failed to generate AI response. Please try again.');

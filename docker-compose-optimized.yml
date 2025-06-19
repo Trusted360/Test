@@ -116,9 +116,9 @@ services:
       REDIS_URL: redis://redis:6379
       SKIP_MIGRATIONS: "false"
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL_PRIMARY: llama3.2:3b-instruct-q4_K_M
-      OLLAMA_MODEL_FALLBACK: llama3.2:3b-instruct-q4_K_M
-      CHAT_CONTEXT_WINDOW: 8192
+      OLLAMA_MODEL_PRIMARY: llama3.1:8b-instruct-q4_K_M
+      OLLAMA_MODEL_FALLBACK: mistral:7b-instruct-v0.3-q4_K_M
+      CHAT_CONTEXT_WINDOW: 16384
       CHAT_MAX_HISTORY: 10
       CHAT_RESPONSE_TIMEOUT: 30000
     volumes:

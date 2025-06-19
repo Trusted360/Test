@@ -95,7 +95,7 @@ class ChatService {
 
   async sendMessage(conversationId: number, messageText: string): Promise<ApiResponse<{
     user_message: Message;
-    ai_response?: Message;
+    ai_message?: Message;
   }>> {
     const response = await api.post(`/chat/conversations/${conversationId}/messages`, {
       message_text: messageText
