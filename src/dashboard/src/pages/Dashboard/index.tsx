@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip } from '@mui/material';
+import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip, Alert as MuiAlert } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { Business as BusinessIcon, Add as AddIcon, Assignment as AssignmentIcon } from '@mui/icons-material';
+import { 
+  Business as BusinessIcon, 
+  Add as AddIcon, 
+  Assignment as AssignmentIcon,
+  Warning as WarningIcon,
+  Videocam as VideocamIcon,
+  Security as SecurityIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PropertyWithStats, propertyService } from '../../services/property.service';
 import { checklistService } from '../../services/checklist.service';
+import { videoService, Alert as VideoAlert } from '../../services/video.service';
 import { Checklist } from '../../types/checklist.types';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -23,10 +31,16 @@ const Dashboard: React.FC = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [recentChecklists, setRecentChecklists] = useState<Checklist[]>([]);
   const [checklistsLoading, setChecklistsLoading] = useState(true);
+  const [activeAlerts, setActiveAlerts] = useState<VideoAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [videoEvents, setVideoEvents] = useState<VideoAlert[]>([]);
+  const [videoEventsLoading, setVideoEventsLoading] = useState(true);
 
   useEffect(() => {
     loadProperties();
     loadRecentChecklists();
+    loadActiveAlerts();
+    loadVideoEvents();
   }, []);
 
   const loadProperties = async () => {
@@ -52,6 +66,58 @@ const Dashboard: React.FC = () => {
     } finally {
       setChecklistsLoading(false);
     }
+  };
+
+  const loadActiveAlerts = async () => {
+    try {
+      setAlertsLoading(true);
+      const response = await videoService.getAlerts({ 
+        status: 'active', 
+        limit: 5 
+      });
+      setActiveAlerts(response.data);
+    } catch (error) {
+      console.error('Error loading active alerts:', error);
+    } finally {
+      setAlertsLoading(false);
+    }
+  };
+
+  const loadVideoEvents = async () => {
+    try {
+      setVideoEventsLoading(true);
+      const response = await videoService.getAlerts({ 
+        limit: 10 
+      });
+      setVideoEvents(response.data);
+    } catch (error) {
+      console.error('Error loading video events:', error);
+    } finally {
+      setVideoEventsLoading(false);
+    }
+  };
+
+  const getSeverityColor = (severity: string): 'error' | 'warning' | 'info' | 'success' => {
+    switch (severity.toLowerCase()) {
+      case 'critical': return 'error';
+      case 'high': return 'error';
+      case 'medium': return 'warning';
+      case 'low': return 'info';
+      default: return 'info';
+    }
+  };
+
+  const getChecklistDisplayName = (checklist: Checklist): string => {
+    if (checklist.template?.name) {
+      return checklist.template.name;
+    }
+    if (checklist.template_name) {
+      return checklist.template_name;
+    }
+    // Generate a meaningful name based on available data
+    const propertyName = checklist.property?.name || checklist.property_name || 'Unknown Property';
+    const createdDate = new Date(checklist.created_at).toLocaleDateString();
+    return `Checklist for ${propertyName} (${createdDate})`;
   };
 
   return (
@@ -172,10 +238,10 @@ const Dashboard: React.FC = () => {
                       <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Box>
                           <Typography variant="subtitle2" fontWeight="medium">
-                            {checklist.template?.name || 'Untitled Checklist'}
+                            {getChecklistDisplayName(checklist)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {checklist.property?.name || 'No Property'} • {new Date(checklist.created_at).toLocaleDateString()}
+                            {checklist.property?.name || checklist.property_name || 'No Property'} • {new Date(checklist.created_at).toLocaleDateString()}
                           </Typography>
                         </Box>
                         <Chip
@@ -207,23 +273,128 @@ const Dashboard: React.FC = () => {
           
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
-              <Typography variant="h6" gutterBottom>
-                Active Alerts
-              </Typography>
-              <Typography variant="body2">
-                No active alerts. All monitored systems are operating normally.
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                  <WarningIcon />
+                  Active Alerts
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/video')}
+                >
+                  View All
+                </Button>
+              </Box>
+              
+              {alertsLoading ? (
+                <Box display="flex" justifyContent="center" py={2}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : activeAlerts.length > 0 ? (
+                <Stack spacing={1}>
+                  {activeAlerts.map((alert) => (
+                    <MuiAlert 
+                      key={alert.id} 
+                      severity={getSeverityColor(alert.severity)}
+                      variant="outlined"
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/video/alerts/${alert.id}`)}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="medium">
+                          {alert.alert_type_name}
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          {alert.camera_name} • {alert.property_name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(alert.created_at).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </MuiAlert>
+                  ))}
+                </Stack>
+              ) : (
+                <Box textAlign="center" py={3}>
+                  <SecurityIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    No active alerts. All monitored systems are operating normally.
+                  </Typography>
+                </Box>
+              )}
             </StyledPaper>
           </Grid>
           
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
-              <Typography variant="h6" gutterBottom>
-                Video Monitoring
-              </Typography>
-              <Typography variant="body2">
-                Monitor your camera feeds and receive real-time security alerts.
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                  <VideocamIcon />
+                  Video Analysis Events
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/video')}
+                >
+                  View All
+                </Button>
+              </Box>
+              
+              {videoEventsLoading ? (
+                <Box display="flex" justifyContent="center" py={2}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : videoEvents.length > 0 ? (
+                <Stack spacing={1} sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                  {videoEvents.slice(0, 5).map((event) => (
+                    <Paper 
+                      key={event.id} 
+                      variant="outlined" 
+                      sx={{ p: 1.5, cursor: 'pointer' }}
+                      onClick={() => navigate(`/video/alerts/${event.id}`)}
+                    >
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="medium">
+                            {event.alert_type_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {event.camera_name} • {event.property_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(event.created_at).toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Stack direction="column" spacing={0.5} alignItems="flex-end">
+                          <Chip
+                            label={event.severity}
+                            color={getSeverityColor(event.severity)}
+                            size="small"
+                          />
+                          <Chip
+                            label={event.status}
+                            variant="outlined"
+                            size="small"
+                            color={event.status === 'resolved' ? 'success' : 'default'}
+                          />
+                        </Stack>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : (
+                <Box textAlign="center" py={3}>
+                  <VideocamIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    No video analysis events recorded yet.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Video events will appear here as they are detected by your cameras.
+                  </Typography>
+                </Box>
+              )}
             </StyledPaper>
           </Grid>
           
