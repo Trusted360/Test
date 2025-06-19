@@ -276,6 +276,130 @@ exports.up = async function(knex) {
     console.log('✅ Created demo camera feeds');
   }
 
+  // SEED VIDEO ALERTS
+  const existingVideoAlerts = await knex('video_alerts').select('id').limit(1);
+  if (existingVideoAlerts.length === 0) {
+    // Get cameras and alert types for foreign key references
+    const cameras = await knex('camera_feeds').select('id', 'name', 'location');
+    const alertTypes = await knex('alert_types').select('id', 'name', 'severity_level');
+    
+    if (cameras.length > 0 && alertTypes.length > 0) {
+      const mainEntranceCamera = cameras.find(c => c.name === 'Main Entrance Camera');
+      const parkingLotCamera = cameras.find(c => c.name === 'Parking Lot Camera');
+      const lobbyCamera = cameras.find(c => c.name === 'Lobby Security Camera');
+      
+      const unauthorizedAccessType = alertTypes.find(at => at.name === 'Unauthorized Access');
+      const motionDetectionType = alertTypes.find(at => at.name === 'Motion Detection');
+      const equipmentMalfunctionType = alertTypes.find(at => at.name === 'Equipment Malfunction');
+      const fireSmokeType = alertTypes.find(at => at.name === 'Fire/Smoke Detection');
+      
+      const demoAlerts = [];
+      
+      // Create demo alerts with realistic data
+      if (mainEntranceCamera && unauthorizedAccessType) {
+        demoAlerts.push({
+          camera_id: mainEntranceCamera.id,
+          alert_type_id: unauthorizedAccessType.id,
+          severity: unauthorizedAccessType.severity_level,
+          status: 'active',
+          alert_data_json: JSON.stringify({
+            demo: true,
+            description: 'Unauthorized person detected in restricted area after hours',
+            ai_confidence: 0.92,
+            duration: 45,
+            image_snapshot_path: '/api/placeholder/320/180',
+            camera_location: mainEntranceCamera.location,
+            actions_taken: []
+          }),
+          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+        });
+      }
+      
+      if (parkingLotCamera && motionDetectionType) {
+        demoAlerts.push({
+          camera_id: parkingLotCamera.id,
+          alert_type_id: motionDetectionType.id,
+          severity: motionDetectionType.severity_level,
+          status: 'active',
+          alert_data_json: JSON.stringify({
+            demo: true,
+            description: 'Motion detected in parking lot during business hours',
+            ai_confidence: 0.75,
+            duration: 30,
+            image_snapshot_path: '/api/placeholder/320/180',
+            camera_location: parkingLotCamera.location,
+            actions_taken: []
+          }),
+          created_at: new Date(Date.now() - 1 * 60 * 60 * 1000) // 1 hour ago
+        });
+      }
+      
+      if (lobbyCamera && equipmentMalfunctionType) {
+        demoAlerts.push({
+          camera_id: lobbyCamera.id,
+          alert_type_id: equipmentMalfunctionType.id,
+          severity: equipmentMalfunctionType.severity_level,
+          status: 'active',
+          alert_data_json: JSON.stringify({
+            demo: true,
+            description: 'Camera feed quality degraded - possible lens obstruction',
+            ai_confidence: 0.88,
+            duration: 120,
+            image_snapshot_path: '/api/placeholder/320/180',
+            camera_location: lobbyCamera.location,
+            actions_taken: []
+          }),
+          created_at: new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
+        });
+      }
+      
+      if (mainEntranceCamera && fireSmokeType) {
+        demoAlerts.push({
+          camera_id: mainEntranceCamera.id,
+          alert_type_id: fireSmokeType.id,
+          severity: fireSmokeType.severity_level,
+          status: 'active',
+          alert_data_json: JSON.stringify({
+            demo: true,
+            description: 'Smoke detected near main entrance - potential fire hazard',
+            ai_confidence: 0.95,
+            duration: 180,
+            image_snapshot_path: '/api/placeholder/320/180',
+            camera_location: mainEntranceCamera.location,
+            actions_taken: []
+          }),
+          created_at: new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
+        });
+      }
+      
+      // Add one resolved alert for demo purposes
+      if (parkingLotCamera && motionDetectionType) {
+        demoAlerts.push({
+          camera_id: parkingLotCamera.id,
+          alert_type_id: motionDetectionType.id,
+          severity: motionDetectionType.severity_level,
+          status: 'resolved',
+          resolved_at: new Date(Date.now() - 10 * 60 * 1000), // Resolved 10 minutes ago
+          alert_data_json: JSON.stringify({
+            demo: true,
+            description: 'Vehicle parked in unauthorized area - resolved after owner moved car',
+            ai_confidence: 0.82,
+            duration: 300,
+            image_snapshot_path: '/api/placeholder/320/180',
+            camera_location: parkingLotCamera.location,
+            actions_taken: ['Security contacted vehicle owner', 'Vehicle moved to authorized parking']
+          }),
+          created_at: new Date(Date.now() - 4 * 60 * 60 * 1000) // 4 hours ago
+        });
+      }
+      
+      if (demoAlerts.length > 0) {
+        await knex('video_alerts').insert(demoAlerts);
+        console.log('✅ Created demo video alerts');
+      }
+    }
+  }
+
   // SEED KNOWLEDGE BASE
   const existingKnowledge = await knex('knowledge_base').select('id').limit(1);
   if (existingKnowledge.length === 0) {
@@ -323,6 +447,7 @@ exports.up = async function(knex) {
 exports.down = async function(knex) {
   // Clean up in reverse order of dependencies
   await knex('knowledge_base').del();
+  await knex('video_alerts').del();
   await knex('camera_feeds').del();
   await knex('alert_types').del();
   await knex('checklist_items').del();

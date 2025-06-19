@@ -9,6 +9,8 @@ const camerasController = require('../controllers/cameras.controller');
 const maintenanceController = require('../controllers/maintenance.controller');
 const analyticsController = require('../controllers/analytics.controller');
 const videoController = require('../controllers/video.controller');
+const settingsController = require('../controllers/settings.controller');
+const propertiesController = require('../controllers/properties.controller');
 
 // Import routes
 const checklistRoutes = require('./checklist.routes');
@@ -18,6 +20,14 @@ router.use('/auth', require('./auth.routes'));
 
 // Protected routes
 router.use(authenticateJWT);
+
+// Properties routes (new for Trusted360)
+router.get('/properties', propertiesController.index);
+router.post('/properties', propertiesController.create);
+router.get('/properties/:id', propertiesController.show);
+router.put('/properties/:id', propertiesController.update);
+router.delete('/properties/:id', propertiesController.destroy);
+router.get('/property-types', propertiesController.getPropertyTypes);
 
 // Facility routes (replaces recipe routes)
 router.get('/facilities', facilitiesController.index);
@@ -89,5 +99,25 @@ router.post('/video/events', videoController.processEvent);
 
 // Checklist routes
 router.use('/checklists', checklistRoutes);
+
+// Settings routes
+router.get('/settings/global', settingsController.getGlobalSettings);
+router.put('/settings/global', settingsController.updateGlobalSettings);
+
+router.get('/settings/user', settingsController.getUserSettings);
+router.put('/settings/user', settingsController.updateUserSettings);
+
+router.get('/settings/notification-targets', settingsController.getNotificationTargets);
+router.post('/settings/notification-targets', settingsController.createNotificationTarget);
+router.put('/settings/notification-targets/:id', settingsController.updateNotificationTarget);
+router.delete('/settings/notification-targets/:id', settingsController.deleteNotificationTarget);
+
+router.get('/settings/service-integrations', settingsController.getServiceIntegrations);
+router.post('/settings/service-integrations', settingsController.createServiceIntegration);
+router.put('/settings/service-integrations/:id', settingsController.updateServiceIntegration);
+router.delete('/settings/service-integrations/:id', settingsController.deleteServiceIntegration);
+
+router.get('/settings/camera-feeds', settingsController.getCameraFeedSettings);
+router.put('/settings/camera-feeds/:cameraFeedId', settingsController.updateCameraFeedSettings);
 
 module.exports = router;

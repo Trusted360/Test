@@ -8,7 +8,7 @@ import {
   Typography,
   Button,
   Chip,
-  Alert,
+  Alert as MuiAlert,
   CircularProgress,
   Table,
   TableBody,
@@ -62,7 +62,7 @@ import {
   Timeline as TimelineIcon,
   NotificationImportant as NotificationIcon
 } from '@mui/icons-material';
-import { videoService } from '../../services/video.service';
+import { videoService, Alert } from '../../services/video.service';
 import { checklistService } from '../../services/checklist.service';
 import { format } from 'date-fns';
 
@@ -106,94 +106,30 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// Mock data for demo purposes
-const mockVideoFeeds: VideoFeed[] = [
-  {
-    id: 1,
-    camera_id: 1,
-    camera_name: "Main Entrance",
-    property_name: "Sunset Apartments",
-    location: "Building A - Front Door",
-    event_type: "suspicious_activity",
-    event_description: "Unidentified person loitering near entrance for extended period",
-    severity: "high",
-    timestamp: new Date(Date.now() - 15 * 60000).toISOString(),
-    thumbnail_url: "/api/placeholder/320/180",
-    duration: 45,
-    ai_confidence: 0.89,
-    status: "reviewing",
-    actions_taken: []
-  },
-  {
-    id: 2,
-    camera_id: 2,
-    camera_name: "Utility Room",
-    property_name: "Sunset Apartments",
-    location: "Building B - Basement",
-    event_type: "water_leak",
-    event_description: "Water detected on floor near water heater",
-    severity: "critical",
-    timestamp: new Date(Date.now() - 30 * 60000).toISOString(),
-    thumbnail_url: "/api/placeholder/320/180",
-    duration: 120,
-    ai_confidence: 0.95,
-    status: "reviewing",
-    actions_taken: ["Maintenance ticket created", "Emergency team notified"]
-  },
-  {
-    id: 3,
-    camera_id: 3,
-    camera_name: "Pool Area",
-    property_name: "Riverside Complex",
-    location: "Recreation Area",
-    event_type: "door_left_open",
-    event_description: "Pool equipment room door left open after hours",
-    severity: "medium",
-    timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-    thumbnail_url: "/api/placeholder/320/180",
-    duration: 30,
-    ai_confidence: 0.92,
-    status: "resolved",
-    actions_taken: ["Security notified", "Door secured"]
-  },
-  {
-    id: 4,
-    camera_id: 4,
-    camera_name: "Parking Garage",
-    property_name: "Downtown Towers",
-    location: "Level 2 - Section C",
-    event_type: "vehicle_accident",
-    event_description: "Minor collision detected between two vehicles",
-    severity: "medium",
-    timestamp: new Date(Date.now() - 4 * 3600000).toISOString(),
-    thumbnail_url: "/api/placeholder/320/180",
-    duration: 60,
-    ai_confidence: 0.87,
-    status: "reviewing",
-    actions_taken: ["Incident report filed"]
-  },
-  {
-    id: 5,
-    camera_id: 5,
-    camera_name: "Lobby",
-    property_name: "Garden View Estates",
-    location: "Main Building",
-    event_type: "fire_alarm",
-    event_description: "Smoke detected in lobby area",
-    severity: "critical",
-    timestamp: new Date(Date.now() - 6 * 3600000).toISOString(),
-    thumbnail_url: "/api/placeholder/320/180",
-    duration: 180,
-    ai_confidence: 0.98,
-    status: "resolved",
-    actions_taken: ["Fire department called", "Building evacuated", "False alarm confirmed"]
-  }
-];
+// Convert API alerts to VideoFeed format for display
+const convertAlertsToVideoFeeds = (alerts: Alert[]): VideoFeed[] => {
+  return alerts.map(alert => ({
+    id: alert.id,
+    camera_id: alert.camera_id,
+    camera_name: alert.camera_name || 'Unknown Camera',
+    property_name: alert.property_name || 'Unknown Property',
+    location: alert.alert_data_json?.camera_location || 'Unknown Location',
+    event_type: alert.alert_type_name?.toLowerCase().replace(/\s+/g, '_') || 'unknown_event',
+    event_description: alert.alert_data_json?.description || 'No description available',
+    severity: alert.severity,
+    timestamp: alert.created_at,
+    thumbnail_url: alert.alert_data_json?.image_snapshot_path || "/api/placeholder/320/180",
+    duration: alert.alert_data_json?.duration || 60,
+    ai_confidence: alert.alert_data_json?.ai_confidence || 0.85,
+    status: alert.status === 'resolved' ? 'resolved' : 'reviewing',
+    actions_taken: alert.alert_data_json?.actions_taken || []
+  }));
+};
 
 const VideoAnalysis: React.FC = () => {
   const [cameras, setCameras] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
-  const [videoFeeds, setVideoFeeds] = useState<VideoFeed[]>(mockVideoFeeds);
+  const [videoFeeds, setVideoFeeds] = useState<VideoFeed[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +178,7 @@ const VideoAnalysis: React.FC = () => {
       
       const [camerasResponse, alertsResponse, statsResponse, templatesResponse] = await Promise.all([
         videoService.getCameras(),
-        videoService.getAlerts(),
+        videoService.getAlerts({ limit: 50 }),
         videoService.getStats(),
         checklistService.getTemplates()
       ]);
@@ -250,11 +186,23 @@ const VideoAnalysis: React.FC = () => {
       setCameras(camerasResponse.data);
       setAlerts(alertsResponse.data);
       setStats(statsResponse.data);
+      
+      // Convert alerts to video feeds format for display
+      const convertedFeeds = convertAlertsToVideoFeeds(alertsResponse.data);
+      setVideoFeeds(convertedFeeds);
+      
       console.log('Templates response:', templatesResponse);
       setChecklistTemplates(templatesResponse.data || []);
     } catch (err: any) {
       console.error('Error loading video data:', err);
       setError(err.message || 'Failed to load video analysis data');
+      
+      // Fallback to empty data if API fails
+      setCameras([]);
+      setAlerts([]);
+      setVideoFeeds([]);
+      setStats({ total_alerts: 0, active_alerts: 0, resolved_alerts: 0, alerts_today: 0 });
+      setChecklistTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -517,9 +465,9 @@ const VideoAnalysis: React.FC = () => {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <MuiAlert severity="error" sx={{ mb: 3 }}>
           {error}
-        </Alert>
+        </MuiAlert>
       )}
 
       {/* Statistics Cards */}
@@ -534,7 +482,7 @@ const VideoAnalysis: React.FC = () => {
                     Active Events
                   </Typography>
                   <Typography variant="h5">
-                    {videoFeeds.filter(f => f.status === 'reviewing').length}
+                    {stats?.active_alerts || videoFeeds.filter(f => f.status === 'reviewing').length}
                   </Typography>
                 </Box>
               </Box>
@@ -551,7 +499,7 @@ const VideoAnalysis: React.FC = () => {
                     Under Review
                   </Typography>
                   <Typography variant="h5">
-                    {videoFeeds.filter(f => f.status === 'reviewing').length}
+                    {stats?.active_alerts || videoFeeds.filter(f => f.status === 'reviewing').length}
                   </Typography>
                 </Box>
               </Box>
@@ -568,7 +516,7 @@ const VideoAnalysis: React.FC = () => {
                     Resolved Today
                   </Typography>
                   <Typography variant="h5">
-                    {videoFeeds.filter(f => f.status === 'resolved').length}
+                    {stats?.alerts_today || videoFeeds.filter(f => f.status === 'resolved').length}
                   </Typography>
                 </Box>
               </Box>
@@ -719,9 +667,17 @@ const VideoAnalysis: React.FC = () => {
                         </Typography>
                       </Box>
                     </Box>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      {feed.camera_name} • {feed.location}
-                    </Typography>
+                    
+                    {/* Property Information - Prominently displayed */}
+                    <Box sx={{ mb: 1, p: 1, bgcolor: 'primary.50', borderRadius: 1, border: '1px solid', borderColor: 'primary.200' }}>
+                      <Typography variant="body2" fontWeight="bold" color="primary.main">
+                        Property: {feed.property_name}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {feed.camera_name} • {feed.location}
+                      </Typography>
+                    </Box>
+                    
                     <Typography variant="body2" sx={{ mb: 2 }}>
                       {feed.event_description}
                     </Typography>
@@ -927,6 +883,14 @@ const VideoAnalysis: React.FC = () => {
               </Box>
               
               <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Property
+                  </Typography>
+                  <Typography variant="body1" gutterBottom fontWeight="bold" color="primary.main">
+                    {selectedFeed.property_name}
+                  </Typography>
+                </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" gutterBottom>
                     Event Type
@@ -1039,9 +1003,9 @@ const VideoAnalysis: React.FC = () => {
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             {selectedFeed && (
-              <Alert severity="info" sx={{ mb: 2 }}>
+              <MuiAlert severity="info" sx={{ mb: 2 }}>
                 Creating checklist for: <strong>{selectedFeed.event_type.replace(/_/g, ' ')}</strong> event at {selectedFeed.location}
-              </Alert>
+              </MuiAlert>
             )}
             <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>Checklist Template</InputLabel>
@@ -1279,13 +1243,13 @@ const VideoAnalysis: React.FC = () => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
+        <MuiAlert 
           onClose={() => setSnackbar({ ...snackbar, open: false })} 
           severity={snackbar.severity}
           sx={{ width: '100%' }}
         >
           {snackbar.message}
-        </Alert>
+        </MuiAlert>
       </Snackbar>
     </Box>
   );
