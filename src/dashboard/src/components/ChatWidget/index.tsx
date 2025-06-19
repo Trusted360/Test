@@ -118,8 +118,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ propertyId, propertyName }) => 
       
       // Add both user message and AI response to the messages
       const newMessages = [response.data.user_message];
-      if (response.data.ai_response) {
-        newMessages.push(response.data.ai_response);
+      if (response.data.ai_message) {
+        newMessages.push(response.data.ai_message);
       }
       
       setMessages(prev => [...prev, ...newMessages]);
