@@ -15,13 +15,15 @@ class AuthService {
    * @param {Object} sessionModel - Session model
    * @param {Object} userActivityModel - User activity model
    * @param {Object} emailService - Email service
+   * @param {Object} auditService - Audit service (optional)
    */
-  constructor(userModel, sessionModel, userActivityModel, emailService) {
+  constructor(userModel, sessionModel, userActivityModel, emailService, auditService = null) {
     this.userModel = userModel;
     this.sessionModel = sessionModel;
     this.userActivityModel = userActivityModel;
     this.emailService = emailService;
-    console.log('[AuthService] Initialized with models:', !!userModel, !!sessionModel, !!userActivityModel);
+    this.auditService = auditService;
+    console.log('[AuthService] Initialized with models:', !!userModel, !!sessionModel, !!userActivityModel, !!auditService);
   }
 
   // Static instance property
@@ -133,6 +135,23 @@ class AuthService {
         // Track failed login and get attempt count
         const attemptInfo = await this.trackFailedLogin(email, ipAddress, tenantId);
         
+        // Log failed login attempt to audit system
+        if (this.auditService) {
+          await this.auditService.logEvent('user', 'login_failed', {
+            userId: user.id,
+            tenantId: tenantId,
+            entityType: 'user',
+            entityId: user.id,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            metadata: {
+              email: email,
+              attempts: attemptInfo?.attempts || 1,
+              reason: 'invalid_password'
+            }
+          });
+        }
+        
         // Provide more specific error based on attempt count
         if (attemptInfo && attemptInfo.attempts >= 3) {
           throw new Error(`Invalid credentials. Account will be temporarily locked after ${5 - attemptInfo.attempts} more failed attempts.`);
@@ -196,6 +215,23 @@ class AuthService {
         ipAddress,
         userAgent
       }, tenantId);
+      
+      // Log successful login to audit system
+      if (this.auditService) {
+        await this.auditService.logEvent('user', 'login', {
+          userId: user.id,
+          tenantId: tenantId,
+          entityType: 'user',
+          entityId: user.id,
+          ipAddress: ipAddress,
+          userAgent: userAgent,
+          metadata: {
+            email: user.email,
+            sessionId: session.id,
+            deviceInfo: deviceInfo || 'Unknown device'
+          }
+        });
+      }
       
       // Remove password from user object
       const userWithoutPassword = { ...user };
@@ -335,6 +371,22 @@ class AuthService {
         ipAddress: session.ip_address,
         userAgent: session.user_agent
       }, tenantId);
+      
+      // Log logout to audit system
+      if (this.auditService) {
+        await this.auditService.logEvent('user', 'logout', {
+          userId: session.user_id,
+          tenantId: tenantId,
+          entityType: 'session',
+          entityId: session.id,
+          ipAddress: session.ip_address,
+          userAgent: session.user_agent,
+          metadata: {
+            sessionId: session.id,
+            deviceInfo: session.device_info
+          }
+        });
+      }
       
       return true;
     } catch (error) {

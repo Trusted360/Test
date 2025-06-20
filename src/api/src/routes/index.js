@@ -10,6 +10,7 @@ const propertyRoutes = require('./property.routes');
 const checklistRoutes = require('./checklist.routes');
 const videoRoutes = require('./video.routes');
 const chatRoutes = require('./chat.routes');
+const auditRoutes = require('./audit.routes');
 
 // Import middleware
 const { authenticateJWT, authMiddleware } = require('../middleware/auth');
@@ -38,6 +39,9 @@ module.exports = function(services) { // Function that accepts services
   
   // Admin routes (protected by session-aware auth middleware)
   router.use('/admin', authMiddleware(services.sessionModel, services.userModel), adminRoutes);
+  
+  // Audit routes (protected by session-aware auth middleware)
+  router.use('/audit', authMiddleware(services.sessionModel, services.userModel), auditRoutes(services));
 
   // API version and status
   router.get('/', (req, res) => {

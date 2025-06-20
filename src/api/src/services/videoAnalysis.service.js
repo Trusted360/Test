@@ -279,6 +279,33 @@ class VideoAnalysisService {
       }
 
       await trx.commit();
+
+      // Log audit event for alert creation
+      if (this.auditService) {
+        await this.auditService.logEvent('video', 'alert_triggered', {
+          userId: null, // System-generated alert
+          tenantId: tenantId,
+          propertyId: camera.property_id,
+          entityType: 'alert',
+          entityId: alert.id,
+          description: `${alertType.name} alert triggered on camera: ${camera.name}`,
+          metadata: {
+            cameraId: camera_id,
+            cameraName: camera.name,
+            alertTypeId: alert_type_id,
+            alertTypeName: alertType.name,
+            severityLevel: alertType.severity_level,
+            confidenceScore: confidence_score,
+            autoTicket: alertType.auto_create_ticket,
+            autoChecklist: alertType.auto_create_checklist
+          },
+          businessContext: {
+            urgency: alertType.severity_level === 'critical' ? 'high' : 'medium',
+            impact: `Security alert requiring ${alertType.severity_level} response`
+          }
+        });
+      }
+
       return await this.getAlertById(alert.id, tenantId);
     } catch (error) {
       await trx.rollback();
@@ -289,8 +316,8 @@ class VideoAnalysisService {
 
   async resolveAlert(alertId, userId, notes, tenantId) {
     try {
-      // Verify alert exists and belongs to tenant
-      await this.getAlertById(alertId, tenantId);
+      // Get alert details before resolving
+      const alert = await this.getAlertById(alertId, tenantId);
 
       const result = await this.knex('video_alerts as va')
         .join('camera_feeds as cf', 'va.camera_id', 'cf.id')
@@ -306,6 +333,30 @@ class VideoAnalysisService {
 
       if (result === 0) {
         throw new Error('Alert not found');
+      }
+
+      // Log audit event for alert resolution
+      if (this.auditService) {
+        // Get property ID from camera
+        const camera = await this.knex('camera_feeds')
+          .where('id', alert.camera_id)
+          .first();
+
+        await this.auditService.logEvent('video', 'alert_resolved', {
+          userId: userId,
+          tenantId: tenantId,
+          propertyId: camera ? camera.property_id : null,
+          entityType: 'alert',
+          entityId: alertId,
+          description: `Resolved ${alert.alert_type_name} alert on camera: ${alert.camera_name}`,
+          metadata: {
+            cameraId: alert.camera_id,
+            cameraName: alert.camera_name,
+            alertTypeName: alert.alert_type_name,
+            resolutionNotes: notes,
+            resolvedAt: new Date()
+          }
+        });
       }
 
       return await this.getAlertById(alertId, tenantId);
@@ -411,9 +462,15 @@ class VideoAnalysisService {
         assigned_to 
       } = ticketData;
 
-      // If alert_id provided, verify it belongs to tenant
+      let propertyId = null;
+      
+      // If alert_id provided, verify it belongs to tenant and get property
       if (alert_id) {
-        await this.getAlertById(alert_id, tenantId);
+        const alert = await this.getAlertById(alert_id, tenantId);
+        const camera = await this.knex('camera_feeds')
+          .where('id', alert.camera_id)
+          .first();
+        propertyId = camera ? camera.property_id : null;
       }
 
       const [ticket] = await this.knex('service_tickets')
@@ -427,6 +484,29 @@ class VideoAnalysisService {
           created_at: new Date()
         })
         .returning('*');
+
+      // Log audit event for service ticket creation
+      if (this.auditService) {
+        await this.auditService.logEvent('maintenance', 'work_order_created', {
+          userId: assigned_to,
+          tenantId: tenantId,
+          propertyId: propertyId,
+          entityType: 'service_ticket',
+          entityId: ticket.id,
+          description: `Service ticket created: ${title}`,
+          metadata: {
+            ticketId: ticket.id,
+            title: title,
+            priority: priority,
+            alertId: alert_id,
+            assignedTo: assigned_to
+          },
+          businessContext: {
+            urgency: priority === 'high' ? 'high' : 'medium',
+            impact: `Service ticket with ${priority} priority`
+          }
+        });
+      }
 
       return ticket;
     } catch (error) {

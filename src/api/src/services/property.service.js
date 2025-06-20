@@ -89,6 +89,24 @@ class PropertyService {
         })
         .returning('*');
 
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('property', 'created', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          propertyId: property.id,
+          entityType: 'property',
+          entityId: property.id,
+          description: `Created property: ${name}`,
+          metadata: {
+            propertyName: name,
+            address: address,
+            propertyType: property_type,
+            status: status
+          }
+        });
+      }
+
       return property;
     } catch (error) {
       throw new Error(`Failed to create property: ${error.message}`);
@@ -126,6 +144,30 @@ class PropertyService {
         .where({ id, tenant_id: tenantId })
         .update(updateData)
         .returning('*');
+
+      // Log audit event
+      if (this.auditService) {
+        const changes = [];
+        if (name !== undefined && name !== existingProperty.name) changes.push(`name: ${existingProperty.name} → ${name}`);
+        if (address !== undefined && address !== existingProperty.address) changes.push(`address: ${existingProperty.address} → ${address}`);
+        if (property_type !== undefined && property_type !== existingProperty.property_type) changes.push(`type: ${existingProperty.property_type} → ${property_type}`);
+        if (status !== undefined && status !== existingProperty.status) changes.push(`status: ${existingProperty.status} → ${status}`);
+
+        await this.auditService.logEvent('property', 'updated', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          propertyId: id,
+          entityType: 'property',
+          entityId: id,
+          description: `Updated property: ${property.name}`,
+          oldValues: existingProperty,
+          newValues: updateData,
+          metadata: {
+            propertyName: property.name,
+            changes: changes.join(', ')
+          }
+        });
+      }
 
       return property;
     } catch (error) {
@@ -165,6 +207,23 @@ class PropertyService {
       await this.knex('properties')
         .where({ id, tenant_id: tenantId })
         .del();
+
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('property', 'deleted', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          propertyId: id,
+          entityType: 'property',
+          entityId: id,
+          description: `Deleted property: ${existingProperty.name}`,
+          metadata: {
+            propertyName: existingProperty.name,
+            address: existingProperty.address,
+            propertyType: existingProperty.property_type
+          }
+        });
+      }
 
       return true;
     } catch (error) {

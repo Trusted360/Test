@@ -16,6 +16,7 @@ const Properties = lazy(() => import('@pages/Properties'));
 const Checklists = lazy(() => import('@pages/Checklists'));
 const ChecklistDetail = lazy(() => import('@pages/Checklists/ChecklistDetail'));
 const VideoAnalysis = lazy(() => import('@pages/Video'));
+const Reports = lazy(() => import('@pages/Audit'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
@@ -116,6 +117,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <VideoAnalysis />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
               </ProtectedRoute>
             }
           />

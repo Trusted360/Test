@@ -20,7 +20,9 @@ const PropertyService = require('./services/property.service');
 const ChecklistService = require('./services/checklist.service');
 const VideoAnalysisService = require('./services/videoAnalysis.service');
 const ChatService = require('./services/chat.service');
+const AuditService = require('./services/audit.service');
 const emailService = require('./services/email.service');
+const auditMiddleware = require('./middleware/auditMiddleware');
 
 // Initialize service instances
 let db;
@@ -77,14 +79,25 @@ function initializeServices(db) {
   
   authServiceInstance = AuthService.initialize(userModel, sessionModel, userActivityModel, emailService);
   
-  // Initialize PropertyService with database connection
+  // Initialize AuditService with database connection
+  const auditServiceInstance = new AuditService(db);
+  
+  // Inject audit service into auth service after initialization
+  if (authServiceInstance) {
+    authServiceInstance.auditService = auditServiceInstance;
+  }
+  
+  // Initialize PropertyService with database connection and inject audit service
   const propertyServiceInstance = new PropertyService(db);
+  propertyServiceInstance.auditService = auditServiceInstance;
   
-  // Initialize ChecklistService with database connection
+  // Initialize ChecklistService with database connection and inject audit service
   const checklistServiceInstance = new ChecklistService(db);
+  checklistServiceInstance.auditService = auditServiceInstance;
   
-  // Initialize VideoAnalysisService with database connection
+  // Initialize VideoAnalysisService with database connection and inject audit service
   const videoAnalysisServiceInstance = new VideoAnalysisService(db);
+  videoAnalysisServiceInstance.auditService = auditServiceInstance;
   
   // Initialize ChatService with database connection
   const chatServiceInstance = new ChatService(db);
@@ -97,6 +110,7 @@ function initializeServices(db) {
     ChecklistService: checklistServiceInstance,
     VideoAnalysisService: videoAnalysisServiceInstance,
     ChatService: chatServiceInstance,
+    AuditService: auditServiceInstance,
     // Make other models/services available if needed by other routes
     userModel,
     sessionModel,
@@ -145,6 +159,9 @@ async function startServer() {
     logger.info('Redis connection established');
 
     const services = initializeServices(db);
+    
+    // Apply audit middleware to capture request context
+    app.use('/api', auditMiddleware(services.AuditService));
     
     // Setup routes with services
     const appRoutes = routesFn(services); // Call the routes function with services

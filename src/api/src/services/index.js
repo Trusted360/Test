@@ -9,6 +9,7 @@ const PropertyService = require('./property.service');
 const ChecklistService = require('./checklist.service');
 const VideoAnalysisService = require('./videoAnalysis.service');
 const ChatService = require('./chat.service');
+const AuditService = require('./audit.service');
 
 module.exports = {
   AuthService,
@@ -21,5 +22,6 @@ module.exports = {
   PropertyService,
   ChecklistService,
   VideoAnalysisService,
-  ChatService
+  ChatService,
+  AuditService
 };

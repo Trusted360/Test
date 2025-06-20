@@ -117,6 +117,23 @@ class ChecklistService {
 
       await trx.commit();
 
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('template', 'created', {
+          userId: created_by,
+          tenantId: tenantId,
+          entityType: 'checklist_template',
+          entityId: template.id,
+          description: `Created template: ${name}`,
+          metadata: {
+            templateName: name,
+            category: category || 'inspection',
+            itemCount: items.length,
+            propertyTypes: property_type_ids
+          }
+        });
+      }
+
       // Return template with items
       return await this.getTemplateById(template.id, tenantId);
     } catch (error) {
@@ -174,6 +191,23 @@ class ChecklistService {
 
       await trx.commit();
 
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('template', 'updated', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          entityType: 'checklist_template',
+          entityId: id,
+          description: `Updated template: ${name}`,
+          metadata: {
+            templateName: name,
+            category: category || 'inspection',
+            itemCount: items.length,
+            propertyTypes: property_type_ids
+          }
+        });
+      }
+
       // Return updated template with items
       return await this.getTemplateById(id, tenantId);
     } catch (error) {
@@ -195,6 +229,16 @@ class ChecklistService {
         throw new Error('Cannot delete template that is in use by existing checklists');
       }
 
+      // Get template info for audit log
+      const template = await this.knex('checklist_templates')
+        .where('id', id)
+        .where('tenant_id', tenantId)
+        .first();
+
+      if (!template) {
+        throw new Error('Template not found');
+      }
+
       // Soft delete by setting is_active to false
       const result = await this.knex('checklist_templates')
         .where('id', id)
@@ -204,8 +248,19 @@ class ChecklistService {
           updated_at: new Date()
         });
 
-      if (result === 0) {
-        throw new Error('Template not found');
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('template', 'deactivated', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          entityType: 'checklist_template',
+          entityId: id,
+          description: `Deactivated template: ${template.name}`,
+          metadata: {
+            templateName: template.name,
+            category: template.category
+          }
+        });
       }
 
       return { success: true, message: 'Template deleted successfully' };
@@ -276,6 +331,29 @@ class ChecklistService {
         .del();
 
       await trx.commit();
+
+      // Log audit event
+      if (this.auditService) {
+        // Get template name for audit log
+        const template = await this.knex('checklist_templates')
+          .where('id', checklist.template_id)
+          .first();
+
+        await this.auditService.logEvent('checklist', 'deleted', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          propertyId: checklist.property_id,
+          entityType: 'checklist',
+          entityId: id,
+          description: `Deleted checklist: ${template ? template.name : 'Unknown'}`,
+          metadata: {
+            checklistId: id,
+            templateId: checklist.template_id,
+            templateName: template ? template.name : null,
+            status: checklist.status
+          }
+        });
+      }
 
       // Clean up attachment files from disk
       const fs = require('fs').promises;
@@ -435,6 +513,24 @@ class ChecklistService {
         })
         .returning('*');
 
+      // Log audit event
+      if (this.auditService) {
+        await this.auditService.logEvent('checklist', 'created', {
+          userId: assigned_to,
+          tenantId: tenantId,
+          propertyId: property_id,
+          entityType: 'checklist',
+          entityId: checklist.id,
+          description: `Created checklist from template: ${template.name}`,
+          metadata: {
+            templateId: template_id,
+            templateName: template.name,
+            propertyName: property.name,
+            dueDate: due_date
+          }
+        });
+      }
+
       return await this.getChecklistById(checklist.id, tenantId);
     } catch (error) {
       logger.error('Error creating checklist:', error);
@@ -482,6 +578,29 @@ class ChecklistService {
         throw new Error('Failed to update checklist');
       }
 
+      // Log audit event for assignment change
+      if (this.auditService && filteredData.assigned_to && filteredData.assigned_to !== checklistExists.assigned_to) {
+        // Get user details
+        const oldUser = checklistExists.assigned_to ? await this.knex('users').where('id', checklistExists.assigned_to).first() : null;
+        const newUser = await this.knex('users').where('id', filteredData.assigned_to).first();
+        
+        await this.auditService.logEvent('checklist', 'assigned', {
+          userId: null, // TODO: Pass userId from controller
+          tenantId: tenantId,
+          propertyId: checklistExists.property_id,
+          entityType: 'checklist',
+          entityId: id,
+          description: `Reassigned checklist from ${oldUser ? oldUser.email : 'unassigned'} to ${newUser ? newUser.email : 'unknown'}`,
+          metadata: {
+            checklistId: id,
+            oldAssignee: checklistExists.assigned_to,
+            newAssignee: filteredData.assigned_to,
+            oldAssigneeEmail: oldUser ? oldUser.email : null,
+            newAssigneeEmail: newUser ? newUser.email : null
+          }
+        });
+      }
+
       return await this.getChecklistById(id, tenantId);
     } catch (error) {
       logger.error('Error updating checklist:', error);
@@ -518,6 +637,30 @@ class ChecklistService {
 
       if (result === 0) {
         throw new Error('Failed to update checklist status');
+      }
+
+      // Log audit event for checklist completion
+      if (this.auditService && status === 'completed') {
+        // Get checklist details for audit log
+        const checklist = await this.knex('property_checklists as pc')
+          .join('checklist_templates as ct', 'pc.template_id', 'ct.id')
+          .where('pc.id', id)
+          .select('pc.*', 'ct.name as template_name')
+          .first();
+
+        await this.auditService.logEvent('checklist', 'completed', {
+          userId: checklistExists.assigned_to,
+          tenantId: tenantId,
+          propertyId: checklistExists.property_id,
+          entityType: 'checklist',
+          entityId: id,
+          description: `Completed checklist: ${checklist ? checklist.template_name : 'Unknown'}`,
+          metadata: {
+            checklistId: id,
+            templateName: checklist ? checklist.template_name : null,
+            completedAt: updateData.completed_at
+          }
+        });
       }
 
       return await this.getChecklistById(id, tenantId);
@@ -586,6 +729,31 @@ class ChecklistService {
         .update({ status: 'in_progress' });
 
       await trx.commit();
+
+      // Log audit event for item completion
+      if (this.auditService) {
+        // Get item details for audit log
+        const item = await this.knex('checklist_items')
+          .where('id', itemId)
+          .first();
+
+        await this.auditService.logEvent('checklist', 'item_completed', {
+          userId: userId,
+          tenantId: tenantId,
+          propertyId: checklist.property_id,
+          entityType: 'checklist_item',
+          entityId: itemId,
+          description: `Completed checklist item: ${item ? item.item_text : 'Unknown'}`,
+          metadata: {
+            checklistId: checklistId,
+            itemText: item ? item.item_text : null,
+            responseValue: response_value,
+            notes: notes,
+            requiresApproval: requires_approval
+          }
+        });
+      }
+
       return response;
     } catch (error) {
       await trx.rollback();
@@ -852,6 +1020,33 @@ class ChecklistService {
       }
 
       await trx.commit();
+
+      // Log audit event
+      if (this.auditService) {
+        // Get response details for audit log
+        const response = await this.knex('checklist_responses as cr')
+          .join('checklist_items as ci', 'cr.item_id', 'ci.id')
+          .join('property_checklists as pc', 'cr.checklist_id', 'pc.id')
+          .where('cr.id', responseId)
+          .select('cr.*', 'ci.item_text', 'pc.property_id')
+          .first();
+
+        await this.auditService.logEvent('checklist', 'approved', {
+          userId: approverId,
+          tenantId: null, // TODO: Get tenantId from context
+          propertyId: response ? response.property_id : null,
+          entityType: 'checklist_response',
+          entityId: responseId,
+          description: `Approved checklist item: ${response ? response.item_text : 'Unknown'}`,
+          metadata: {
+            responseId: responseId,
+            itemText: response ? response.item_text : null,
+            approvalNotes: notes,
+            approvedAt: new Date()
+          }
+        });
+      }
+
       return { success: true, message: 'Response approved successfully' };
     } catch (error) {
       await trx.rollback();
@@ -892,6 +1087,33 @@ class ChecklistService {
       }
 
       await trx.commit();
+
+      // Log audit event
+      if (this.auditService) {
+        // Get response details for audit log
+        const response = await this.knex('checklist_responses as cr')
+          .join('checklist_items as ci', 'cr.item_id', 'ci.id')
+          .join('property_checklists as pc', 'cr.checklist_id', 'pc.id')
+          .where('cr.id', responseId)
+          .select('cr.*', 'ci.item_text', 'pc.property_id')
+          .first();
+
+        await this.auditService.logEvent('checklist', 'rejected', {
+          userId: approverId,
+          tenantId: null, // TODO: Get tenantId from context
+          propertyId: response ? response.property_id : null,
+          entityType: 'checklist_response',
+          entityId: responseId,
+          description: `Rejected checklist item: ${response ? response.item_text : 'Unknown'}`,
+          metadata: {
+            responseId: responseId,
+            itemText: response ? response.item_text : null,
+            rejectionNotes: notes,
+            rejectedAt: new Date()
+          }
+        });
+      }
+
       return { success: true, message: 'Response rejected successfully' };
     } catch (error) {
       await trx.rollback();
