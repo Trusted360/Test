@@ -26,7 +26,7 @@ COPY . .
 RUN echo '#!/bin/bash\n\
 # Wait for PostgreSQL to be ready\n\
 echo "Waiting for PostgreSQL to be ready..."\n\
-while ! pg_isready -h postgres -U simmer -d simmer; do\n\
+while ! pg_isready -h postgres -U trusted360 -d trusted360; do\n\
     sleep 1\n\
 done\n\
 \n\

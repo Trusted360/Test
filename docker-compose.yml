@@ -57,6 +57,12 @@ services:
       - OLLAMA_KEEP_ALIVE=5m
       - OLLAMA_NUM_PARALLEL=1
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
     # Simplified health check - just check if the service is responding
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:11434/ || exit 1"]
@@ -110,6 +116,12 @@ services:
     ports:
       - "3001:3000"
     command: npm start
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://trusted360:trusted360_password@postgres:5432/trusted360
@@ -185,5 +197,3 @@ volumes:
   redis_data:
   recipe_images:
   ollama_data:
-    # Make ollama_data external so it persists across docker-compose down -v
-    external: true

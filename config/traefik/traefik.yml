@@ -17,12 +17,12 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: simmer-network
+    network: trusted360-network
 
 certificatesResolvers:
   default:
     acme:
-      email: admin@simmer.home
+      email: admin@trusted360.local
       storage: /etc/traefik/acme/acme.json
       httpChallenge:
         entryPoint: web
@@ -36,12 +36,12 @@ accessLog: {}
 http:
   routers:
     api:
-      rule: "Host(`192.168.50.56`) && PathPrefix(`/api`)"
+      rule: "PathPrefix(`/api`)"
       service: api
       entryPoints:
         - web
     web:
-      rule: "Host(`192.168.50.56`)"
+      rule: "HostRegexp(`{host:.+}`)"
       service: web
       entryPoints:
         - web

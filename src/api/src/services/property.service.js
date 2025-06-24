@@ -19,7 +19,7 @@ class PropertyService {
 
       // Apply filters
       if (filters.propertyType) {
-        query = query.where('property_type', filters.propertyType);
+        query = query.where('property_type_id', filters.propertyType);
       }
 
       if (filters.status) {
@@ -70,7 +70,7 @@ class PropertyService {
    */
   async createProperty(propertyData, tenantId) {
     try {
-      const { name, address, property_type, status = 'active' } = propertyData;
+      const { name, address, property_type_id, status = 'active' } = propertyData;
 
       // Validate required fields
       if (!name) {
@@ -81,7 +81,7 @@ class PropertyService {
         .insert({
           name,
           address,
-          property_type,
+          property_type_id,
           status,
           tenant_id: tenantId,
           created_at: new Date(),
@@ -101,7 +101,7 @@ class PropertyService {
           metadata: {
             propertyName: name,
             address: address,
-            propertyType: property_type,
+            propertyType: property_type_id,
             status: status
           }
         });
@@ -122,7 +122,7 @@ class PropertyService {
    */
   async updateProperty(id, propertyData, tenantId) {
     try {
-      const { name, address, property_type, status } = propertyData;
+      const { name, address, property_type_id, status } = propertyData;
 
       // Check if property exists and belongs to tenant
       const existingProperty = await this.getPropertyById(id, tenantId);
@@ -137,7 +137,7 @@ class PropertyService {
       // Only update provided fields
       if (name !== undefined) updateData.name = name;
       if (address !== undefined) updateData.address = address;
-      if (property_type !== undefined) updateData.property_type = property_type;
+      if (property_type_id !== undefined) updateData.property_type_id = property_type_id;
       if (status !== undefined) updateData.status = status;
 
       const [property] = await this.knex('properties')
@@ -150,7 +150,7 @@ class PropertyService {
         const changes = [];
         if (name !== undefined && name !== existingProperty.name) changes.push(`name: ${existingProperty.name} → ${name}`);
         if (address !== undefined && address !== existingProperty.address) changes.push(`address: ${existingProperty.address} → ${address}`);
-        if (property_type !== undefined && property_type !== existingProperty.property_type) changes.push(`type: ${existingProperty.property_type} → ${property_type}`);
+        if (property_type_id !== undefined && property_type_id !== existingProperty.property_type_id) changes.push(`type: ${existingProperty.property_type_id} → ${property_type_id}`);
         if (status !== undefined && status !== existingProperty.status) changes.push(`status: ${existingProperty.status} → ${status}`);
 
         await this.auditService.logEvent('property', 'updated', {
@@ -220,7 +220,7 @@ class PropertyService {
           metadata: {
             propertyName: existingProperty.name,
             address: existingProperty.address,
-            propertyType: existingProperty.property_type
+            propertyType: existingProperty.property_type_id
           }
         });
       }

@@ -22,7 +22,7 @@ This is the Trusted360 self-storage security platform. All development must foll
 
 ### 4. Idempotent Build
 - The entire application must be destructible and rebuildable from scratch with no manual intervention
-- Ensure `docker-compose down -v` followed by `docker-compose up` results in a fully functional system
+- Ensure `docker compose down -v` followed by `docker compose up` results in a fully functional system
 - All initialization must be automated
 
 ### 5. Real Features Only
@@ -61,6 +61,11 @@ When completing work:
    - Specific next steps for the following session
 4. Ensure the summary provides enough context for seamless continuation
 
+### 11. No Emojis
+- Do not use emojis in any code, documentation, or communication
+- Keep all content professional and text-based
+- Use clear text labels instead of emoji indicators
+
 ## Project-Specific Guidelines
 
 ### Directory Structure
@@ -78,6 +83,10 @@ When completing work:
 - Never commit unless explicitly asked
 - Always verify changes work in Docker before suggesting commits
 - Include clear commit messages following project conventions
+
+### Docker Commands
+- Use `docker compose` instead of `docker-compose` for all Docker Compose operations
+- Standard commands: `docker compose up`, `docker compose down`, `docker compose build`
 
 ### Documentation
 - Keep documentation up to date in artifacts directory

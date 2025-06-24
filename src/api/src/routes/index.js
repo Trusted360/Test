@@ -11,6 +11,7 @@ const checklistRoutes = require('./checklist.routes');
 const videoRoutes = require('./video.routes');
 const chatRoutes = require('./chat.routes');
 const auditRoutes = require('./audit.routes');
+const settingsRoutes = require('./settings.routes');
 
 // Import middleware
 const { authenticateJWT, authMiddleware } = require('../middleware/auth');
@@ -42,6 +43,9 @@ module.exports = function(services) { // Function that accepts services
   
   // Audit routes (protected by session-aware auth middleware)
   router.use('/audit', authMiddleware(services.sessionModel, services.userModel), auditRoutes(services));
+  
+  // Settings routes (protected by session-aware auth middleware)
+  router.use('/settings', authMiddleware(services.sessionModel, services.userModel), settingsRoutes(services));
 
   // API version and status
   router.get('/', (req, res) => {
