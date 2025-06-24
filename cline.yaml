@@ -1,3 +1,0 @@
-name: trusted360
-rules:
-  - path: ./cline.rules.json
