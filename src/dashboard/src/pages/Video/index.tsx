@@ -63,6 +63,7 @@ import {
   NotificationImportant as NotificationIcon
 } from '@mui/icons-material';
 import { videoService, Alert } from '../../services/video.service';
+import VideoAlertIcon from '../../components/VideoAlertIcon';
 import { checklistService } from '../../services/checklist.service';
 import { format } from 'date-fns';
 
@@ -225,18 +226,28 @@ const VideoAnalysis: React.FC = () => {
     setTabValue(newValue);
   };
 
-  const getEventIcon = (eventType: string) => {
+  const getEventIcon = (eventType: string, size: number = 40) => {
+    // Try custom PNG icon first
+    const customIcon = <VideoAlertIcon eventType={eventType} size={size} />;
+    
+    // If custom icon exists for this event type, use it
+    const hasCustomIcon = [
+      'fire_alarm', 'fire', 'malfunction', 'equipment_malfunction',
+      'motion_detected', 'motion', 'person_detected', 'vehicle_detected',
+      'parking_violation', 'parking', 'unauthorized_access', 'security_breach',
+      'suspicious_activity'
+    ].includes(eventType);
+    
+    if (hasCustomIcon) {
+      return customIcon;
+    }
+    
+    // Fallback to Material-UI icons for other types
     switch (eventType) {
-      case 'suspicious_activity':
-        return <SecurityIcon />;
       case 'water_leak':
         return <WaterDropIcon />;
       case 'door_left_open':
         return <DoorFrontIcon />;
-      case 'fire_alarm':
-        return <FireIcon />;
-      case 'person_detected':
-        return <PersonIcon />;
       case 'vehicle_accident':
         return <CarIcon />;
       case 'animal_detected':
@@ -656,7 +667,7 @@ const VideoAnalysis: React.FC = () => {
                           mr: 1
                         }}
                       >
-                        {getEventIcon(feed.event_type)}
+                        {getEventIcon(feed.event_type, 32)}
                       </Box>
                       <Box flex={1}>
                         <Typography variant="subtitle2" fontWeight="bold">
@@ -785,7 +796,7 @@ const VideoAnalysis: React.FC = () => {
                       return (
                         <ListItem key={type}>
                           <ListItemIcon>
-                            {getEventIcon(type)}
+                            {getEventIcon(type, 24)}
                           </ListItemIcon>
                           <ListItemText
                             primary={type.replace(/_/g, ' ').toUpperCase()}
@@ -852,7 +863,7 @@ const VideoAnalysis: React.FC = () => {
                 mr: 2
               }}
             >
-              {selectedFeed && getEventIcon(selectedFeed.event_type)}
+              {selectedFeed && getEventIcon(selectedFeed.event_type, 36)}
             </Box>
             Event Details
           </Box>
@@ -1206,7 +1217,7 @@ const VideoAnalysis: React.FC = () => {
                 {Object.entries(alertSettings.eventTypes).map(([eventType, enabled]) => (
                   <Box key={eventType} display="flex" alignItems="center" justifyContent="space-between">
                     <Box display="flex" alignItems="center">
-                      {getEventIcon(eventType)}
+                      {getEventIcon(eventType, 28)}
                       <Typography sx={{ ml: 2 }}>
                         {eventType.replace(/_/g, ' ').charAt(0).toUpperCase() + eventType.replace(/_/g, ' ').slice(1)}
                       </Typography>

@@ -1,5 +1,7 @@
 const propertyManagerService = require('../services/propertyManager.service');
-const auditService = require('../services/audit.service');
+const { knex } = require('../database');
+const AuditService = require('../services/audit.service');
+const auditService = new AuditService(knex);
 
 class PropertyManagerController {
   /**
@@ -16,14 +18,14 @@ class PropertyManagerController {
         { dateRange, propertyId }
       );
       
-      await auditService.log({
-        user_id: req.user.id,
-        action: 'view_dashboard',
-        entity_type: 'property_manager',
-        entity_id: propertyId || 'all',
+      await auditService.logEvent('property', 'view_dashboard', {
+        userId: req.user.id,
+        entityType: 'property_manager',
+        entityId: propertyId || 'all',
         description: 'Viewed property manager dashboard',
-        ip_address: req.ip,
-        user_agent: req.get('user-agent')
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        tenantId: tenantId
       });
       
       res.json({
@@ -59,12 +61,12 @@ class PropertyManagerController {
         }
       );
       
-      await auditService.log({
-        user_id: req.user.id,
-        action: 'generate_report',
-        entity_type: 'checklist_completion',
+      await auditService.logEvent('checklist', 'generate_report', {
+        userId: req.user.id,
+        entityType: 'checklist_completion',
         description: 'Generated checklist completion report',
-        metadata: { startDate, endDate, propertyId }
+        metadata: { startDate, endDate, propertyId },
+        tenantId: tenantId
       });
       
       res.json({
@@ -128,13 +130,13 @@ class PropertyManagerController {
         actionItemData
       );
       
-      await auditService.log({
-        user_id: req.user.id,
-        action: actionItemData.id ? 'update' : 'create',
-        entity_type: 'action_item',
-        entity_id: actionItem.id,
+      await auditService.logEvent('property', actionItemData.id ? 'update' : 'create', {
+        userId: req.user.id,
+        entityType: 'action_item',
+        entityId: actionItem.id,
         description: `${actionItemData.id ? 'Updated' : 'Created'} action item: ${actionItem.title}`,
-        new_values: actionItem
+        newValues: actionItem,
+        tenantId: tenantId
       });
       
       res.json({
@@ -262,6 +264,49 @@ class PropertyManagerController {
         success: true,
         message: `Export functionality for ${reportType} in ${format} format will be implemented`,
         params
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get comprehensive property audit data
+   * GET /api/property-manager/property-audits
+   */
+  async getPropertyAuditData(req, res, next) {
+    try {
+      const tenantId = req.user.tenant_id;
+      const { 
+        startDate,
+        endDate,
+        propertyId,
+        status,
+        assignedTo
+      } = req.query;
+      
+      const auditData = await propertyManagerService.getPropertyAuditData(
+        tenantId,
+        {
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          propertyId: propertyId ? parseInt(propertyId) : null,
+          status,
+          assignedTo: assignedTo ? parseInt(assignedTo) : null
+        }
+      );
+      
+      await auditService.logEvent('checklist', 'view_property_audits', {
+        userId: req.user.id,
+        entityType: 'property_audit',
+        description: 'Viewed property audit data',
+        metadata: { startDate, endDate, propertyId, status },
+        tenantId: tenantId
+      });
+      
+      res.json({
+        success: true,
+        data: auditData
       });
     } catch (error) {
       next(error);

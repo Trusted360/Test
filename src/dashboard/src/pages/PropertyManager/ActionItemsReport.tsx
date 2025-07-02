@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -47,17 +48,21 @@ import propertyManagerService, { ActionItem } from '../../services/propertyManag
 import { propertyService } from '../../services/property.service';
 
 const ActionItemsReport: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [summary, setSummary] = useState<any>({});
   const [properties, setProperties] = useState<any[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   
+  // Get propertyId from URL parameters
+  const urlPropertyId = searchParams.get('propertyId') || '';
+  
   // Filters
   const [filters, setFilters] = useState({
     status: '',
     severity: '',
-    propertyId: '',
+    propertyId: urlPropertyId,
     overdue: false
   });
   
@@ -79,9 +84,9 @@ const ActionItemsReport: React.FC = () => {
         propertyManagerService.getActionItems(filters),
         propertyService.getProperties()
       ]);
-      setActionItems(itemsData.actionItems);
-      setSummary(itemsData.summary);
-      setProperties(propertiesData);
+      setActionItems(itemsData.actionItems || []);
+      setSummary(itemsData.summary || {});
+      setProperties(Array.isArray(propertiesData) ? propertiesData : []);
     } catch (error) {
       console.error('Failed to load action items:', error);
     } finally {
@@ -165,7 +170,7 @@ const ActionItemsReport: React.FC = () => {
               <Typography color="textSecondary" gutterBottom>Open Items</Typography>
               <Typography variant="h4">{summary.open_count || 0}</Typography>
               <Typography variant="body2" color="error">
-                ${(summary.estimated_cost || 0).toFixed(0)} estimated
+                ${(parseFloat(summary.estimated_cost) || 0).toFixed(0)} estimated
               </Typography>
             </CardContent>
           </Card>
@@ -199,7 +204,7 @@ const ActionItemsReport: React.FC = () => {
                 {summary.completed_count || 0}
               </Typography>
               <Typography variant="body2">
-                ${(summary.actual_cost || 0).toFixed(0)} spent
+                ${(parseFloat(summary.actual_cost) || 0).toFixed(0)} spent
               </Typography>
             </CardContent>
           </Card>
@@ -250,7 +255,7 @@ const ActionItemsReport: React.FC = () => {
                 label="Property"
               >
                 <MenuItem value="">All Properties</MenuItem>
-                {properties.map(property => (
+                {properties && Array.isArray(properties) && properties.map(property => (
                   <MenuItem key={property.id} value={property.id}>
                     {property.name}
                   </MenuItem>
@@ -341,7 +346,7 @@ const ActionItemsReport: React.FC = () => {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>${item.cost || 0}</TableCell>
+                    <TableCell>${parseFloat(item.cost) || 0}</TableCell>
                     <TableCell>
                       <Tooltip title="Add Update">
                         <IconButton 

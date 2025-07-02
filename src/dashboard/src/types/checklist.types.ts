@@ -160,9 +160,9 @@ export interface CreateChecklistTemplateData {
   schedule_interval?: number;
   schedule_days_of_week?: number[];
   schedule_day_of_month?: number;
-  schedule_time?: string;
-  schedule_start_date?: string;
-  schedule_end_date?: string;
+  schedule_time?: string | null;
+  schedule_start_date?: string | null;
+  schedule_end_date?: string | null;
   schedule_advance_days?: number;
   auto_assign?: boolean;
 }

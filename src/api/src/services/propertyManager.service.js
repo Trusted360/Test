@@ -454,6 +454,225 @@ class PropertyManagerService {
       aggregates
     };
   }
+
+  /**
+   * Get comprehensive property audit data with checklist details
+   */
+  async getPropertyAuditData(tenantId, options = {}) {
+    const { 
+      startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 
+      endDate = new Date(),
+      propertyId = null,
+      status = null,
+      assignedTo = null
+    } = options;
+
+    // Get property checklist completion data
+    let checklistQuery = knex('property_checklists as pc')
+      .join('properties as p', 'pc.property_id', 'p.id')
+      .join('checklist_templates as ct', 'pc.template_id', 'ct.id')
+      .leftJoin('users as assignee', 'pc.assigned_to', 'assignee.id')
+      .leftJoin('users as creator', 'ct.created_by', 'creator.id')
+      .where('p.tenant_id', tenantId)
+      .select(
+        'pc.id as checklist_id',
+        'pc.property_id',
+        'p.name as property_name',
+        'p.address as property_address',
+        'ct.id as template_id',
+        'ct.name as template_name',
+        'ct.category',
+        'pc.status',
+        'pc.due_date',
+        'pc.created_at',
+        'pc.completed_at',
+        knex.raw("CONCAT(assignee.first_name, ' ', assignee.last_name) as assigned_to_name"),
+        'assignee.email as assigned_to_email',
+        knex.raw("CONCAT(creator.first_name, ' ', creator.last_name) as created_by_name"),
+        
+        // Get completion percentage
+        knex.raw(`
+          COALESCE(
+            ROUND(
+              (SELECT COUNT(*) * 100.0 / NULLIF(
+                (SELECT COUNT(*) FROM checklist_items WHERE template_id = ct.id), 0
+              )
+              FROM checklist_responses cr 
+              WHERE cr.checklist_id = pc.id 
+              AND cr.completed_at IS NOT NULL),
+            0), 0
+          ) as completion_percentage
+        `),
+        
+        // Get item counts
+        knex.raw(`
+          (SELECT COUNT(*) FROM checklist_items WHERE template_id = ct.id) as total_items
+        `),
+        knex.raw(`
+          (SELECT COUNT(*) 
+           FROM checklist_responses cr 
+           WHERE cr.checklist_id = pc.id 
+           AND cr.completed_at IS NOT NULL) as completed_items
+        `),
+        
+        // Get issue counts
+        knex.raw(`
+          (SELECT COUNT(*) 
+           FROM checklist_responses cr 
+           WHERE cr.checklist_id = pc.id 
+           AND cr.issue_severity IS NOT NULL 
+           AND cr.issue_severity != 'none') as items_with_issues
+        `),
+        knex.raw(`
+          (SELECT COUNT(*) 
+           FROM checklist_responses cr 
+           WHERE cr.checklist_id = pc.id 
+           AND cr.issue_severity IN ('major', 'critical')) as critical_issues
+        `),
+        
+        // Get attachment count
+        knex.raw(`
+          (SELECT COUNT(DISTINCT ca.id) 
+           FROM checklist_responses cr 
+           JOIN checklist_attachments ca ON ca.response_id = cr.id
+           WHERE cr.checklist_id = pc.id) as attachment_count
+        `),
+        
+        // Get last activity
+        knex.raw(`
+          (SELECT MAX(GREATEST(
+            cr.completed_at, 
+            cr.created_at,
+            (SELECT MAX(created_at) FROM checklist_comments WHERE response_id = cr.id)
+          ))
+          FROM checklist_responses cr
+          WHERE cr.checklist_id = pc.id) as last_activity
+        `)
+      );
+
+    // Apply filters
+    if (propertyId) {
+      checklistQuery = checklistQuery.where('pc.property_id', propertyId);
+    }
+    
+    if (status) {
+      checklistQuery = checklistQuery.where('pc.status', status);
+    }
+    
+    if (assignedTo) {
+      checklistQuery = checklistQuery.where('pc.assigned_to', assignedTo);
+    }
+    
+    // Date range filter
+    checklistQuery = checklistQuery.where(function() {
+      this.whereBetween('pc.created_at', [startDate, endDate])
+        .orWhereBetween('pc.completed_at', [startDate, endDate]);
+    });
+
+    const checklists = await checklistQuery.orderBy('pc.created_at', 'desc');
+
+    // Get detailed checklist items for each checklist
+    const checklistIds = checklists.map(c => c.checklist_id);
+    
+    let itemDetails = [];
+    if (checklistIds.length > 0) {
+      itemDetails = await knex('checklist_responses as cr')
+        .join('checklist_items as ci', 'cr.item_id', 'ci.id')
+        .leftJoin('users as u', 'cr.completed_by', 'u.id')
+        .whereIn('cr.checklist_id', checklistIds)
+        .select(
+          'cr.checklist_id',
+          'ci.item_text',
+          'ci.item_type',
+          'ci.is_required',
+          'cr.response_value',
+          'cr.notes',
+          'cr.issue_severity',
+          'cr.issue_description',
+          'cr.completed_at as item_completed_at',
+          knex.raw("CONCAT(u.first_name, ' ', u.last_name) as completed_by_name"),
+          'u.email as completed_by_email',
+          knex.raw(`
+            (SELECT COUNT(*) 
+             FROM checklist_attachments 
+             WHERE response_id = cr.id) as attachments
+          `),
+          knex.raw(`
+            (SELECT COUNT(*) 
+             FROM checklist_comments 
+             WHERE response_id = cr.id) as comments
+          `)
+        )
+        .orderBy('ci.sort_order');
+    }
+
+    // Get summary statistics
+    const summary = await knex('property_checklists as pc')
+      .join('properties as p', 'pc.property_id', 'p.id')
+      .where('p.tenant_id', tenantId)
+      .where(function() {
+        this.whereBetween('pc.created_at', [startDate, endDate])
+          .orWhereBetween('pc.completed_at', [startDate, endDate]);
+      })
+      .select(
+        knex.raw('COUNT(DISTINCT pc.id) as total_checklists'),
+        knex.raw('COUNT(DISTINCT pc.property_id) as total_properties'),
+        knex.raw(`COUNT(DISTINCT pc.id) FILTER (WHERE pc.status = 'completed') as completed_checklists`),
+        knex.raw(`COUNT(DISTINCT pc.id) FILTER (WHERE pc.status = 'pending') as pending_checklists`),
+        knex.raw(`COUNT(DISTINCT pc.id) FILTER (WHERE pc.status = 'in_progress') as in_progress_checklists`),
+        knex.raw(`COUNT(DISTINCT pc.id) FILTER (WHERE pc.due_date < CURRENT_TIMESTAMP AND pc.status != 'completed') as overdue_checklists`)
+      )
+      .first();
+
+    // Get recent audit activity related to checklists
+    const auditActivity = await knex('audit_logs as al')
+      .join('audit_event_types as aet', 'al.event_type_id', 'aet.id')
+      .leftJoin('users as u', 'al.user_id', 'u.id')
+      .where('al.tenant_id', tenantId)
+      .where('aet.category', 'checklist')
+      .whereBetween('al.created_at', [startDate, endDate])
+      .select(
+        'al.id',
+        'al.action',
+        'al.description',
+        'al.entity_id',
+        'al.property_id',
+        'al.created_at',
+        knex.raw("CONCAT(u.first_name, ' ', u.last_name) as user_name"),
+        'u.email as user_email',
+        'al.metadata'
+      )
+      .orderBy('al.created_at', 'desc')
+      .limit(100);
+
+    // Group item details by checklist
+    const itemDetailsByChecklist = {};
+    itemDetails.forEach(item => {
+      if (!itemDetailsByChecklist[item.checklist_id]) {
+        itemDetailsByChecklist[item.checklist_id] = [];
+      }
+      itemDetailsByChecklist[item.checklist_id].push(item);
+    });
+
+    // Combine data
+    const checklistsWithDetails = checklists.map(checklist => ({
+      ...checklist,
+      items: itemDetailsByChecklist[checklist.checklist_id] || []
+    }));
+
+    return {
+      checklists: checklistsWithDetails,
+      summary,
+      auditActivity,
+      filters: {
+        startDate,
+        endDate,
+        propertyId,
+        status,
+        assignedTo
+      }
+    };
+  }
 }
 
 module.exports = new PropertyManagerService();

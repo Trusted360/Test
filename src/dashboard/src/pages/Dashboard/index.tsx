@@ -5,8 +5,7 @@ import {
   Business as BusinessIcon, 
   Add as AddIcon, 
   Assignment as AssignmentIcon,
-  Videocam as VideocamIcon,
-  Schedule as ScheduleIcon
+  Videocam as VideocamIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +13,7 @@ import { PropertyWithStats, propertyService } from '../../services/property.serv
 import { checklistService } from '../../services/checklist.service';
 import { videoService, Alert as VideoAlert } from '../../services/video.service';
 import { Checklist } from '../../types/checklist.types';
+import VideoAlertIcon from '../../components/VideoAlertIcon';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -30,15 +30,12 @@ const Dashboard: React.FC = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [recentChecklists, setRecentChecklists] = useState<Checklist[]>([]);
   const [checklistsLoading, setChecklistsLoading] = useState(true);
-  const [scheduledTemplates, setScheduledTemplates] = useState<any[]>([]);
-  const [scheduledLoading, setScheduledLoading] = useState(true);
   const [videoEvents, setVideoEvents] = useState<VideoAlert[]>([]);
   const [videoEventsLoading, setVideoEventsLoading] = useState(true);
 
   useEffect(() => {
     loadProperties();
     loadRecentChecklists();
-    loadScheduledTemplates();
     loadVideoEvents();
   }, []);
 
@@ -67,18 +64,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadScheduledTemplates = async () => {
-    try {
-      setScheduledLoading(true);
-      const response = await checklistService.getTemplates({ is_scheduled: true });
-      // Get active scheduled templates
-      setScheduledTemplates(response.data.filter((template: any) => template.is_active && template.is_scheduled).slice(0, 5));
-    } catch (error) {
-      console.error('Error loading scheduled templates:', error);
-    } finally {
-      setScheduledLoading(false);
-    }
-  };
 
 
   const loadVideoEvents = async () => {
@@ -118,18 +103,6 @@ const Dashboard: React.FC = () => {
     return `Checklist for ${propertyName} (${createdDate})`;
   };
 
-  const formatScheduleFrequency = (template: any): string => {
-    if (!template.schedule_frequency) return 'Not scheduled';
-    
-    const frequency = template.schedule_frequency;
-    const interval = template.schedule_interval || 1;
-    
-    if (interval === 1) {
-      return frequency.charAt(0).toUpperCase() + frequency.slice(1);
-    } else {
-      return `Every ${interval} ${frequency}${frequency.endsWith('ly') ? '' : 's'}`;
-    }
-  };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -282,87 +255,6 @@ const Dashboard: React.FC = () => {
             </StyledPaper>
           </Grid>
 
-          {/* Scheduled Templates */}
-          <Grid item xs={12} md={6}>
-            <StyledPaper elevation={2}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" display="flex" alignItems="center" gap={1}>
-                  <ScheduleIcon />
-                  Scheduled Templates
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => navigate('/checklists')}
-                >
-                  View All
-                </Button>
-              </Box>
-              
-              {scheduledLoading ? (
-                <Box display="flex" justifyContent="center" py={2}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : scheduledTemplates.length > 0 ? (
-                <Stack spacing={1}>
-                  {scheduledTemplates.map((template) => (
-                    <Paper 
-                      key={template.id} 
-                      variant="outlined" 
-                      sx={{ p: 1.5, cursor: 'pointer' }}
-                      onClick={() => navigate('/checklists')}
-                    >
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight="medium">
-                            {template.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {formatScheduleFrequency(template)} • {checklistService.formatCategory(template.category)}
-                          </Typography>
-                          {template.schedule_time && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Generates at {template.schedule_time}
-                            </Typography>
-                          )}
-                        </Box>
-                        <Stack spacing={0.5} alignItems="flex-end">
-                          <Chip
-                            label="Scheduled"
-                            color="primary"
-                            size="small"
-                            variant="outlined"
-                          />
-                          {template.auto_assign && (
-                            <Chip
-                              label="Auto-assign"
-                              color="secondary"
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                        </Stack>
-                      </Box>
-                    </Paper>
-                  ))}
-                </Stack>
-              ) : (
-                <Box textAlign="center" py={3}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    No scheduled templates configured yet.
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => navigate('/checklists')}
-                    size="small"
-                  >
-                    Create Scheduled Template
-                  </Button>
-                </Box>
-              )}
-            </StyledPaper>
-          </Grid>
           
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
@@ -393,8 +285,12 @@ const Dashboard: React.FC = () => {
                       sx={{ p: 1.5, cursor: 'pointer' }}
                       onClick={() => navigate(`/video/alerts/${event.id}`)}
                     >
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box>
+                      <Box display="flex" alignItems="center" gap={2}>
+                        <VideoAlertIcon 
+                          eventType={event.alert_type_id?.toString() || event.alert_type_name.toLowerCase().replace(/\s+/g, '_')}
+                          size={32}
+                        />
+                        <Box flex={1}>
                           <Typography variant="subtitle2" fontWeight="medium">
                             {event.alert_type_name}
                           </Typography>

@@ -42,5 +42,10 @@ module.exports = (services) => {
     propertyManagerController.getPropertyInspectionSummary
   );
 
+  // Property audit data endpoint
+  router.get('/property-audits',
+    propertyManagerController.getPropertyAuditData
+  );
+
   return router;
 };

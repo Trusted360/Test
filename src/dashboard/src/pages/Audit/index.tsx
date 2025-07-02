@@ -21,19 +21,36 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Tooltip
+  Tooltip,
+  LinearProgress,
+  Collapse,
+  Avatar,
+  Stack,
+  Divider
 } from '@mui/material';
 import {
   Assessment as ReportsIcon,
   Timeline as MetricsIcon,
   History as ActivityIcon,
   Refresh as RefreshIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  CheckCircle as CheckCircleIcon,
+  RadioButtonUnchecked as PendingIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  FilterList as FilterIcon,
+  Assignment as AssignmentIcon,
+  AttachFile as AttachmentIcon,
+  Comment as CommentIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 import auditService, {
   AuditLog,
@@ -41,6 +58,12 @@ import auditService, {
   PropertyMetrics,
   AuditFilters
 } from '../../services/audit.service';
+import propertyAuditService, {
+  PropertyAuditData,
+  PropertyChecklist,
+  ChecklistItem,
+  PropertyAuditFilters
+} from '../../services/propertyAudit.service';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -65,6 +88,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const AuditDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +98,12 @@ const AuditDashboard: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<AuditLog[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [propertyMetrics, setPropertyMetrics] = useState<PropertyMetrics[]>([]);
+  
+  // Property audit data
+  const [propertyAuditData, setPropertyAuditData] = useState<PropertyAuditData | null>(null);
+  const [expandedChecklists, setExpandedChecklists] = useState<Set<number>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [propertyFilters, setPropertyFilters] = useState<PropertyAuditFilters>({});
   
   // Filter states
   const [filters, setFilters] = useState<AuditFilters>({
@@ -90,8 +120,10 @@ const AuditDashboard: React.FC = () => {
   useEffect(() => {
     if (tabValue === 1) {
       loadAuditLogs();
+    } else if (tabValue === 3) {
+      loadPropertyAuditData();
     }
-  }, [tabValue, filters]);
+  }, [tabValue, filters, propertyFilters]);
 
   const loadDashboardData = async () => {
     try {
@@ -110,6 +142,20 @@ const AuditDashboard: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
       setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const loadPropertyAuditData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await propertyAuditService.getPropertyAuditData(propertyFilters);
+      setPropertyAuditData(data);
+    } catch (err: any) {
+      console.error('Failed to load property audit data:', err);
+      setError(err.message || 'Failed to load property audit data');
     } finally {
       setLoading(false);
     }
@@ -137,6 +183,38 @@ const AuditDashboard: React.FC = () => {
       [field]: value,
       page: field !== 'page' ? 1 : value // Reset to page 1 when changing filters
     }));
+  };
+  
+  const handlePropertyFilterChange = (field: keyof PropertyAuditFilters, value: any) => {
+    setPropertyFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  const toggleChecklistExpanded = (checklistId: number) => {
+    setExpandedChecklists(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(checklistId)) {
+        newSet.delete(checklistId);
+      } else {
+        newSet.add(checklistId);
+      }
+      return newSet;
+    });
+  };
+  
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircleIcon color="success" fontSize="small" />;
+      case 'in_progress':
+        return <CircularProgress size={16} />;
+      case 'pending':
+        return <PendingIcon color="warning" fontSize="small" />;
+      default:
+        return <PendingIcon fontSize="small" />;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -198,6 +276,7 @@ const AuditDashboard: React.FC = () => {
             <Tab icon={<MetricsIcon />} label="Overview" />
             <Tab icon={<ActivityIcon />} label="Activity Logs" />
             <Tab icon={<ReportsIcon />} label="Reports" />
+            <Tab icon={<AssignmentIcon />} label="Property Checklists" />
           </Tabs>
         </Box>
 
@@ -573,6 +652,459 @@ const AuditDashboard: React.FC = () => {
               </Paper>
             </Grid>
           </Grid>
+        </TabPanel>
+
+        {/* Property Checklists Tab */}
+        <TabPanel value={tabValue} index={3}>
+          {/* Filter Section */}
+          <Box sx={{ mb: 3 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">Property Checklist Audits</Typography>
+              <Tooltip title="Toggle Filters">
+                <IconButton onClick={() => setShowFilters(!showFilters)} color="primary">
+                  <FilterIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
+            <Collapse in={showFilters}>
+              <Paper sx={{ p: 2 }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={2}>
+                    <DatePicker
+                      label="Start Date"
+                      value={propertyFilters.startDate ? new Date(propertyFilters.startDate) : null}
+                      onChange={(date) => handlePropertyFilterChange('startDate', date?.toISOString().split('T')[0])}
+                      slotProps={{
+                        textField: {
+                          size: 'small',
+                          fullWidth: true
+                        }
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <DatePicker
+                      label="End Date"
+                      value={propertyFilters.endDate ? new Date(propertyFilters.endDate) : null}
+                      onChange={(date) => handlePropertyFilterChange('endDate', date?.toISOString().split('T')[0])}
+                      slotProps={{
+                        textField: {
+                          size: 'small',
+                          fullWidth: true
+                        }
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <TextField
+                      select
+                      label="Status"
+                      value={propertyFilters.status || ''}
+                      onChange={(e) => handlePropertyFilterChange('status', e.target.value || undefined)}
+                      size="small"
+                      fullWidth
+                    >
+                      <MenuItem value="">All Statuses</MenuItem>
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="in_progress">In Progress</MenuItem>
+                      <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setPropertyFilters({})}
+                      fullWidth
+                    >
+                      Clear Filters
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Collapse>
+          </Box>
+
+          {/* Summary Cards */}
+          {propertyAuditData && (
+            <Grid container spacing={3} mb={4}>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      Total Checklists
+                    </Typography>
+                    <Typography variant="h4">
+                      {propertyAuditData.summary.total_checklists}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      Properties
+                    </Typography>
+                    <Typography variant="h4">
+                      {propertyAuditData.summary.total_properties}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      Completed
+                    </Typography>
+                    <Typography variant="h4" color="success.main">
+                      {propertyAuditData.summary.completed_checklists}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      In Progress
+                    </Typography>
+                    <Typography variant="h4" color="info.main">
+                      {propertyAuditData.summary.in_progress_checklists}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      Pending
+                    </Typography>
+                    <Typography variant="h4" color="warning.main">
+                      {propertyAuditData.summary.pending_checklists}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <Card>
+                  <CardContent>
+                    <Typography color="textSecondary" gutterBottom variant="body2">
+                      Overdue
+                    </Typography>
+                    <Typography variant="h4" color="error.main">
+                      {propertyAuditData.summary.overdue_checklists}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Checklist Details */}
+          {propertyAuditData?.checklists.map((checklist) => (
+            <Paper key={checklist.checklist_id} sx={{ mb: 2 }}>
+              {/* Checklist Header */}
+              <Box
+                sx={{
+                  p: 2,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' }
+                }}
+                onClick={() => toggleChecklistExpanded(checklist.checklist_id)}
+              >
+                <Grid container alignItems="center" spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <IconButton size="small">
+                        {expandedChecklists.has(checklist.checklist_id) ? 
+                          <ExpandLessIcon /> : <ExpandMoreIcon />
+                        }
+                      </IconButton>
+                      {getStatusIcon(checklist.status)}
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {checklist.template_name}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {checklist.property_name}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Box>
+                      <Typography variant="body2" color="textSecondary">
+                        Progress
+                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={checklist.completion_percentage}
+                          sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
+                        />
+                        <Typography variant="body2">
+                          {checklist.completion_percentage}%
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Box>
+                      <Typography variant="body2" color="textSecondary">
+                        Assigned To
+                      </Typography>
+                      <Typography variant="body2">
+                        {checklist.assigned_to_name || '-'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Box>
+                      <Typography variant="body2" color="textSecondary">
+                        Due Date
+                      </Typography>
+                      <Typography 
+                        variant="body2"
+                        color={propertyAuditService.isOverdue(checklist.due_date, checklist.status) ? 'error' : 'inherit'}
+                      >
+                        {formatDate(checklist.due_date)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Stack direction="row" spacing={1}>
+                      <Chip
+                        label={checklist.status}
+                        size="small"
+                        color={propertyAuditService.getStatusColor(checklist.status)}
+                      />
+                      {checklist.items_with_issues > 0 && (
+                        <Chip
+                          icon={<WarningIcon />}
+                          label={`${checklist.items_with_issues} issues`}
+                          size="small"
+                          color="warning"
+                        />
+                      )}
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {/* Checklist Item Details */}
+              <Collapse in={expandedChecklists.has(checklist.checklist_id)}>
+                <Divider />
+                <Box sx={{ p: 2 }}>
+                  {/* Metadata */}
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Created
+                      </Typography>
+                      <Typography variant="body2">
+                        {formatDate(checklist.created_at)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Completed
+                      </Typography>
+                      <Typography variant="body2">
+                        {formatDate(checklist.completed_at)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Items
+                      </Typography>
+                      <Typography variant="body2">
+                        {checklist.completed_items} / {checklist.total_items} completed
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Attachments
+                      </Typography>
+                      <Typography variant="body2">
+                        {checklist.attachment_count} files
+                      </Typography>
+                    </Grid>
+                  </Grid>
+
+                  {/* Checklist Items Table */}
+                  {checklist.items.length > 0 && (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Item</TableCell>
+                            <TableCell>Response</TableCell>
+                            <TableCell>Completed By</TableCell>
+                            <TableCell>Completed At</TableCell>
+                            <TableCell>Issues</TableCell>
+                            <TableCell align="center">Details</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {checklist.items.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  {item.item_completed_at ? (
+                                    <CheckCircleIcon color="success" fontSize="small" />
+                                  ) : (
+                                    <PendingIcon color="disabled" fontSize="small" />
+                                  )}
+                                  <Typography variant="body2">
+                                    {item.item_text}
+                                    {item.is_required && (
+                                      <Chip label="Required" size="small" sx={{ ml: 1 }} />
+                                    )}
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.response_value || '-'}
+                                </Typography>
+                                {item.notes && (
+                                  <Typography variant="caption" color="textSecondary">
+                                    Note: {item.notes}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {item.completed_by_name || '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {formatDate(item.item_completed_at)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                {item.issue_severity && item.issue_severity !== 'none' && (
+                                  <Box>
+                                    <Chip
+                                      label={item.issue_severity}
+                                      size="small"
+                                      color={propertyAuditService.getSeverityColor(item.issue_severity)}
+                                    />
+                                    {item.issue_description && (
+                                      <Typography variant="caption" display="block">
+                                        {item.issue_description}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                <Stack direction="row" spacing={1} justifyContent="center">
+                                  {item.attachments > 0 && (
+                                    <Chip
+                                      icon={<AttachmentIcon />}
+                                      label={item.attachments}
+                                      size="small"
+                                    />
+                                  )}
+                                  {item.comments > 0 && (
+                                    <Chip
+                                      icon={<CommentIcon />}
+                                      label={item.comments}
+                                      size="small"
+                                    />
+                                  )}
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {/* Action Buttons */}
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => navigate(`/checklists/${checklist.checklist_id}`)}
+                    >
+                      View Full Details
+                    </Button>
+                    {checklist.status === 'completed' && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="primary"
+                      >
+                        Generate Report
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              </Collapse>
+            </Paper>
+          ))}
+
+          {/* Checklist Activity Timeline */}
+          {propertyAuditData && propertyAuditData.auditActivity.length > 0 && (
+            <Box mt={4}>
+              <Typography variant="h6" gutterBottom>
+                Recent Checklist Activity
+              </Typography>
+              <Paper>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Time</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Action</TableCell>
+                        <TableCell>Description</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {propertyAuditData.auditActivity.slice(0, 10).map((activity) => (
+                        <TableRow key={activity.id}>
+                          <TableCell>
+                            {formatDate(activity.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Avatar sx={{ width: 24, height: 24 }}>
+                                {activity.user_name?.charAt(0) || 'U'}
+                              </Avatar>
+                              <Typography variant="body2">
+                                {activity.user_name || activity.user_email}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={activity.action}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {activity.description}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            </Box>
+          )}
         </TabPanel>
       </Box>
     </LocalizationProvider>

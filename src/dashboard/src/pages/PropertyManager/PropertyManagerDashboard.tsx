@@ -152,10 +152,10 @@ const PropertyManagerDashboard: React.FC = () => {
                 Total Open Issues
               </Typography>
               <Typography variant="h4">
-                {dashboardData.propertyIssues.reduce((sum, p) => sum + p.open_issues, 0)}
+                {dashboardData.propertyIssues.reduce((sum, p) => sum + parseInt(p.open_issues), 0)}
               </Typography>
               <Typography variant="body2" color="error">
-                {dashboardData.propertyIssues.reduce((sum, p) => sum + p.overdue_issues, 0)} overdue
+                {dashboardData.propertyIssues.reduce((sum, p) => sum + parseInt(p.overdue_issues), 0)} overdue
               </Typography>
             </CardContent>
           </Card>
@@ -167,7 +167,7 @@ const PropertyManagerDashboard: React.FC = () => {
                 Critical Issues
               </Typography>
               <Typography variant="h4" color="error">
-                {dashboardData.propertyIssues.reduce((sum, p) => sum + p.critical_issues, 0)}
+                {dashboardData.propertyIssues.reduce((sum, p) => sum + parseInt(p.critical_issues), 0)}
               </Typography>
               <Typography variant="body2">
                 Requires immediate attention
@@ -197,7 +197,7 @@ const PropertyManagerDashboard: React.FC = () => {
                 Estimated Costs
               </Typography>
               <Typography variant="h4">
-                ${dashboardData.propertyIssues.reduce((sum, p) => sum + (p.estimated_cost || 0), 0).toFixed(0)}
+                ${dashboardData.propertyIssues.reduce((sum, p) => sum + (parseFloat(p.estimated_cost) || 0), 0).toFixed(0)}
               </Typography>
               <Typography variant="body2">
                 Pending repairs
@@ -264,12 +264,12 @@ const PropertyManagerDashboard: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    ${(property.estimated_cost || 0).toFixed(0)}
+                    ${(parseFloat(property.estimated_cost) || 0).toFixed(0)}
                   </TableCell>
                   <TableCell>
                     <Button 
                       size="small" 
-                      onClick={() => navigate(`/property-manager/properties/${property.property_id}/issues`)}
+                      onClick={() => navigate(`/property-manager/reports/action-items?propertyId=${property.property_id}`)}
                     >
                       View Issues
                     </Button>
