@@ -136,7 +136,17 @@ const Checklists: React.FC = () => {
     name: '',
     description: '',
     category: '',
-    items: []
+    items: [],
+    is_scheduled: false,
+    schedule_frequency: 'monthly',
+    schedule_interval: 1,
+    schedule_days_of_week: [],
+    schedule_day_of_month: 1,
+    schedule_time: '09:00',
+    schedule_start_date: '',
+    schedule_end_date: '',
+    schedule_advance_days: 0,
+    auto_assign: false
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -277,7 +287,17 @@ const Checklists: React.FC = () => {
       name: '',
       description: '',
       category: '',
-      items: []
+      items: [],
+      is_scheduled: false,
+      schedule_frequency: 'monthly',
+      schedule_interval: 1,
+      schedule_days_of_week: [],
+      schedule_day_of_month: 1,
+      schedule_time: '09:00',
+      schedule_start_date: '',
+      schedule_end_date: '',
+      schedule_advance_days: 0,
+      auto_assign: false
     });
   };
 
@@ -385,7 +405,17 @@ const Checklists: React.FC = () => {
         name: fullTemplate.name,
         description: fullTemplate.description || '',
         category: fullTemplate.category,
-        items
+        items,
+        is_scheduled: fullTemplate.is_scheduled || false,
+        schedule_frequency: fullTemplate.schedule_frequency || 'monthly',
+        schedule_interval: fullTemplate.schedule_interval || 1,
+        schedule_days_of_week: fullTemplate.schedule_days_of_week || [],
+        schedule_day_of_month: fullTemplate.schedule_day_of_month || 1,
+        schedule_time: fullTemplate.schedule_time || '09:00',
+        schedule_start_date: fullTemplate.schedule_start_date || '',
+        schedule_end_date: fullTemplate.schedule_end_date || '',
+        schedule_advance_days: fullTemplate.schedule_advance_days || 0,
+        auto_assign: fullTemplate.auto_assign || false
       });
       setEditTemplateDialogOpen(true);
     } catch (error) {
@@ -991,6 +1021,157 @@ const Checklists: React.FC = () => {
 
               <Divider />
               
+              {/* Scheduling Section */}
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  Scheduling Configuration
+                </Typography>
+                
+                <Stack spacing={2}>
+                  <FormControl fullWidth>
+                    <InputLabel>Enable Scheduling</InputLabel>
+                    <Select
+                      value={templateFormData.is_scheduled ? 'yes' : 'no'}
+                      onChange={(e) => setTemplateFormData(prev => ({ ...prev, is_scheduled: e.target.value === 'yes' }))}
+                      label="Enable Scheduling"
+                    >
+                      <MenuItem value="no">No - Manual Creation Only</MenuItem>
+                      <MenuItem value="yes">Yes - Automatically Generate Checklists</MenuItem>
+                    </Select>
+                  </FormControl>
+                  
+                  {templateFormData.is_scheduled && (
+                    <Collapse in={templateFormData.is_scheduled}>
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Frequency</InputLabel>
+                              <Select
+                                value={templateFormData.schedule_frequency}
+                                onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_frequency: e.target.value as any }))}
+                                label="Frequency"
+                              >
+                                <MenuItem value="daily">Daily</MenuItem>
+                                <MenuItem value="weekly">Weekly</MenuItem>
+                                <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                                <MenuItem value="monthly">Monthly</MenuItem>
+                                <MenuItem value="quarterly">Quarterly</MenuItem>
+                                <MenuItem value="yearly">Yearly</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Interval"
+                              type="number"
+                              value={templateFormData.schedule_interval}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_interval: parseInt(e.target.value) || 1 }))}
+                              inputProps={{ min: 1, max: 12 }}
+                              helperText="Every X frequency periods"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        {(templateFormData.schedule_frequency === 'weekly' || templateFormData.schedule_frequency === 'bi-weekly') && (
+                          <FormControl fullWidth>
+                            <InputLabel>Days of Week</InputLabel>
+                            <Select
+                              multiple
+                              value={templateFormData.schedule_days_of_week}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_days_of_week: e.target.value as number[] }))}
+                              label="Days of Week"
+                            >
+                              <MenuItem value={0}>Sunday</MenuItem>
+                              <MenuItem value={1}>Monday</MenuItem>
+                              <MenuItem value={2}>Tuesday</MenuItem>
+                              <MenuItem value={3}>Wednesday</MenuItem>
+                              <MenuItem value={4}>Thursday</MenuItem>
+                              <MenuItem value={5}>Friday</MenuItem>
+                              <MenuItem value={6}>Saturday</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                        
+                        {(templateFormData.schedule_frequency === 'monthly' || templateFormData.schedule_frequency === 'quarterly' || templateFormData.schedule_frequency === 'yearly') && (
+                          <TextField
+                            fullWidth
+                            label="Day of Month"
+                            type="number"
+                            value={templateFormData.schedule_day_of_month}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_day_of_month: parseInt(e.target.value) || 1 }))}
+                            inputProps={{ min: 1, max: 31 }}
+                            helperText="Day of the month to generate checklist"
+                          />
+                        )}
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Generation Time"
+                              type="time"
+                              value={templateFormData.schedule_time}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_time: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Advance Days"
+                              type="number"
+                              value={templateFormData.schedule_advance_days}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_advance_days: parseInt(e.target.value) || 0 }))}
+                              inputProps={{ min: 0, max: 30 }}
+                              helperText="Generate X days in advance"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Start Date"
+                              type="date"
+                              value={templateFormData.schedule_start_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_start_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="End Date (Optional)"
+                              type="date"
+                              value={templateFormData.schedule_end_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_end_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <FormControl fullWidth>
+                          <InputLabel>Auto-assign</InputLabel>
+                          <Select
+                            value={templateFormData.auto_assign ? 'yes' : 'no'}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, auto_assign: e.target.value === 'yes' }))}
+                            label="Auto-assign"
+                          >
+                            <MenuItem value="no">No - Leave Unassigned</MenuItem>
+                            <MenuItem value="yes">Yes - Auto-assign to Property Manager</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </Collapse>
+                  )}
+                </Stack>
+              </Box>
+
+              <Divider />
+              
               <Box>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="subtitle1">Checklist Items</Typography>
@@ -1239,6 +1420,157 @@ const Checklists: React.FC = () => {
                   ))}
                 </Select>
               </FormControl>
+
+              <Divider />
+              
+              {/* Scheduling Section */}
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  Scheduling Configuration
+                </Typography>
+                
+                <Stack spacing={2}>
+                  <FormControl fullWidth>
+                    <InputLabel>Enable Scheduling</InputLabel>
+                    <Select
+                      value={templateFormData.is_scheduled ? 'yes' : 'no'}
+                      onChange={(e) => setTemplateFormData(prev => ({ ...prev, is_scheduled: e.target.value === 'yes' }))}
+                      label="Enable Scheduling"
+                    >
+                      <MenuItem value="no">No - Manual Creation Only</MenuItem>
+                      <MenuItem value="yes">Yes - Automatically Generate Checklists</MenuItem>
+                    </Select>
+                  </FormControl>
+                  
+                  {templateFormData.is_scheduled && (
+                    <Collapse in={templateFormData.is_scheduled}>
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Frequency</InputLabel>
+                              <Select
+                                value={templateFormData.schedule_frequency}
+                                onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_frequency: e.target.value as any }))}
+                                label="Frequency"
+                              >
+                                <MenuItem value="daily">Daily</MenuItem>
+                                <MenuItem value="weekly">Weekly</MenuItem>
+                                <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                                <MenuItem value="monthly">Monthly</MenuItem>
+                                <MenuItem value="quarterly">Quarterly</MenuItem>
+                                <MenuItem value="yearly">Yearly</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Interval"
+                              type="number"
+                              value={templateFormData.schedule_interval}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_interval: parseInt(e.target.value) || 1 }))}
+                              inputProps={{ min: 1, max: 12 }}
+                              helperText="Every X frequency periods"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        {(templateFormData.schedule_frequency === 'weekly' || templateFormData.schedule_frequency === 'bi-weekly') && (
+                          <FormControl fullWidth>
+                            <InputLabel>Days of Week</InputLabel>
+                            <Select
+                              multiple
+                              value={templateFormData.schedule_days_of_week}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_days_of_week: e.target.value as number[] }))}
+                              label="Days of Week"
+                            >
+                              <MenuItem value={0}>Sunday</MenuItem>
+                              <MenuItem value={1}>Monday</MenuItem>
+                              <MenuItem value={2}>Tuesday</MenuItem>
+                              <MenuItem value={3}>Wednesday</MenuItem>
+                              <MenuItem value={4}>Thursday</MenuItem>
+                              <MenuItem value={5}>Friday</MenuItem>
+                              <MenuItem value={6}>Saturday</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                        
+                        {(templateFormData.schedule_frequency === 'monthly' || templateFormData.schedule_frequency === 'quarterly' || templateFormData.schedule_frequency === 'yearly') && (
+                          <TextField
+                            fullWidth
+                            label="Day of Month"
+                            type="number"
+                            value={templateFormData.schedule_day_of_month}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_day_of_month: parseInt(e.target.value) || 1 }))}
+                            inputProps={{ min: 1, max: 31 }}
+                            helperText="Day of the month to generate checklist"
+                          />
+                        )}
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Generation Time"
+                              type="time"
+                              value={templateFormData.schedule_time}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_time: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Advance Days"
+                              type="number"
+                              value={templateFormData.schedule_advance_days}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_advance_days: parseInt(e.target.value) || 0 }))}
+                              inputProps={{ min: 0, max: 30 }}
+                              helperText="Generate X days in advance"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Start Date"
+                              type="date"
+                              value={templateFormData.schedule_start_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_start_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="End Date (Optional)"
+                              type="date"
+                              value={templateFormData.schedule_end_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_end_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <FormControl fullWidth>
+                          <InputLabel>Auto-assign</InputLabel>
+                          <Select
+                            value={templateFormData.auto_assign ? 'yes' : 'no'}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, auto_assign: e.target.value === 'yes' }))}
+                            label="Auto-assign"
+                          >
+                            <MenuItem value="no">No - Leave Unassigned</MenuItem>
+                            <MenuItem value="yes">Yes - Auto-assign to Property Manager</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </Collapse>
+                  )}
+                </Stack>
+              </Box>
 
               <Divider />
               

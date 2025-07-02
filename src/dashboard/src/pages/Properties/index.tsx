@@ -27,7 +27,9 @@ import {
   Grid,
   Card,
   CardContent,
-  Tooltip
+  Tooltip,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -49,8 +51,11 @@ import {
   PropertyFilters,
   propertyService 
 } from '../../services/property.service';
+import { ResponsiveTable, MobileCard, MobileCardRow, MobileCardActions } from '../../components/ResponsiveTable';
 
 const Properties: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [properties, setProperties] = useState<PropertyWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -211,9 +216,15 @@ const Properties: React.FC = () => {
     <Box sx={{ flexGrow: 1 }}>
       <Stack spacing={3}>
         {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Box 
+          display="flex" 
+          flexDirection={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between" 
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          gap={2}
+        >
           <Box>
-            <Typography variant="h4" gutterBottom>
+            <Typography variant={isMobile ? "h5" : "h4"} gutterBottom>
               Properties
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
@@ -224,6 +235,8 @@ const Properties: React.FC = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setCreateDialogOpen(true)}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
           >
             Add Property
           </Button>
@@ -302,54 +315,49 @@ const Properties: React.FC = () => {
           </Grid>
         </Paper>
 
-        {/* Properties Table */}
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Property</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="center">Cameras</TableCell>
-                <TableCell align="center">Checklists</TableCell>
-                <TableCell align="center">Active Alerts</TableCell>
-                <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+        {/* Properties Table/Cards */}
+        <ResponsiveTable
+          mobileCards={
+            <>
               {properties.map((property) => (
-                <TableRow key={property.id} hover>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      {getPropertyIcon(property.property_type)}
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium">
-                          {property.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {property.address}
-                        </Typography>
-                      </Box>
+                <MobileCard key={property.id}>
+                  <Box display="flex" alignItems="flex-start" gap={2} mb={2}>
+                    {getPropertyIcon(property.property_type)}
+                    <Box flexGrow={1}>
+                      <Typography variant="h6" component="h3" gutterBottom>
+                        {property.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {property.address}
+                      </Typography>
                     </Box>
-                  </TableCell>
-                  <TableCell>
-                    {propertyService.formatPropertyType(property.property_type)}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={propertyService.formatPropertyStatus(property.status)}
-                      color={propertyService.getStatusColor(property.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    {property.camera_count || 0}
-                  </TableCell>
-                  <TableCell align="center">
-                    {property.checklist_count || 0}
-                  </TableCell>
-                  <TableCell align="center">
-                    {property.active_alerts ? (
+                  </Box>
+                  
+                  <MobileCardRow 
+                    label="Type" 
+                    value={propertyService.formatPropertyType(property.property_type)} 
+                  />
+                  <MobileCardRow 
+                    label="Status" 
+                    value={
+                      <Chip
+                        label={propertyService.formatPropertyStatus(property.status)}
+                        color={propertyService.getStatusColor(property.status)}
+                        size="small"
+                      />
+                    } 
+                  />
+                  <MobileCardRow 
+                    label="Cameras" 
+                    value={property.camera_count || 0} 
+                  />
+                  <MobileCardRow 
+                    label="Checklists" 
+                    value={property.checklist_count || 0} 
+                  />
+                  <MobileCardRow 
+                    label="Active Alerts" 
+                    value={property.active_alerts ? (
                       <Chip
                         label={property.active_alerts}
                         color="error"
@@ -357,44 +365,135 @@ const Properties: React.FC = () => {
                       />
                     ) : (
                       0
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" spacing={1} justifyContent="center">
-                      <Tooltip title="View Details">
-                        <IconButton size="small">
-                          <ViewIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Property">
-                        <IconButton size="small" onClick={() => openEditDialog(property)}>
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Property">
-                        <IconButton size="small" onClick={() => openDeleteDialog(property)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
+                    )} 
+                  />
+                  
+                  <MobileCardActions>
+                    <IconButton size="medium" color="primary">
+                      <ViewIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="medium" 
+                      color="primary" 
+                      onClick={() => openEditDialog(property)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="medium" 
+                      color="error" 
+                      onClick={() => openDeleteDialog(property)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </MobileCardActions>
+                </MobileCard>
               ))}
               {properties.length === 0 && !loading && (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body1" color="text.secondary">
-                      No properties found. Add your first property to get started.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
+                <Box textAlign="center" py={4}>
+                  <Typography variant="body1" color="text.secondary">
+                    No properties found. Add your first property to get started.
+                  </Typography>
+                </Box>
               )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </>
+          }
+        >
+          <TableHead>
+            <TableRow>
+              <TableCell>Property</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="center">Cameras</TableCell>
+              <TableCell align="center">Checklists</TableCell>
+              <TableCell align="center">Active Alerts</TableCell>
+              <TableCell align="center">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {properties.map((property) => (
+              <TableRow key={property.id} hover>
+                <TableCell>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {getPropertyIcon(property.property_type)}
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight="medium">
+                        {property.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {property.address}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  {propertyService.formatPropertyType(property.property_type)}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={propertyService.formatPropertyStatus(property.status)}
+                    color={propertyService.getStatusColor(property.status)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="center">
+                  {property.camera_count || 0}
+                </TableCell>
+                <TableCell align="center">
+                  {property.checklist_count || 0}
+                </TableCell>
+                <TableCell align="center">
+                  {property.active_alerts ? (
+                    <Chip
+                      label={property.active_alerts}
+                      color="error"
+                      size="small"
+                    />
+                  ) : (
+                    0
+                  )}
+                </TableCell>
+                <TableCell align="center">
+                  <Stack direction="row" spacing={1} justifyContent="center">
+                    <Tooltip title="View Details">
+                      <IconButton size="small">
+                        <ViewIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit Property">
+                      <IconButton size="small" onClick={() => openEditDialog(property)}>
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete Property">
+                      <IconButton size="small" onClick={() => openDeleteDialog(property)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+            {properties.length === 0 && !loading && (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No properties found. Add your first property to get started.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </ResponsiveTable>
 
         {/* Create Property Dialog */}
-        <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
+        <Dialog 
+          open={createDialogOpen} 
+          onClose={() => setCreateDialogOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          fullScreen={isMobile}
+        >
           <DialogTitle>Add New Property</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -457,7 +556,13 @@ const Properties: React.FC = () => {
         </Dialog>
 
         {/* Edit Property Dialog */}
-        <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <Dialog 
+          open={editDialogOpen} 
+          onClose={() => setEditDialogOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+          fullScreen={isMobile}
+        >
           <DialogTitle>Edit Property</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>

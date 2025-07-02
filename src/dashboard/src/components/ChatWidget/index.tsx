@@ -14,7 +14,9 @@ import {
   CircularProgress,
   Alert,
   Collapse,
-  Divider
+  Divider,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   Chat as ChatIcon,
@@ -32,6 +34,8 @@ interface ChatWidgetProps {
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ propertyId, propertyName }) => {
   console.log('ChatWidget rendering...');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isOpen, setIsOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
@@ -185,10 +189,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ propertyId, propertyName }) => 
           elevation={8}
           sx={{
             position: 'fixed',
-            bottom: 80,
-            right: 16,
-            width: 400,
-            height: 500,
+            bottom: isMobile ? 0 : 80,
+            right: isMobile ? 0 : 16,
+            left: isMobile ? 0 : 'auto',
+            width: isMobile ? '100%' : 400,
+            height: isMobile ? '100vh' : 500,
             zIndex: 1001,
             display: 'flex',
             flexDirection: 'column',

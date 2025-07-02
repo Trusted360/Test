@@ -9,6 +9,17 @@ export interface ChecklistTemplate {
   created_at: string;
   updated_at: string;
   items?: ChecklistTemplateItem[];
+  // Scheduling fields
+  is_scheduled?: boolean;
+  schedule_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
+  schedule_interval?: number;
+  schedule_days_of_week?: number[];
+  schedule_day_of_month?: number;
+  schedule_time?: string;
+  schedule_start_date?: string;
+  schedule_end_date?: string;
+  schedule_advance_days?: number;
+  auto_assign?: boolean;
 }
 
 export interface ChecklistTemplateItem {
@@ -143,6 +154,17 @@ export interface CreateChecklistTemplateData {
   description?: string;
   category: string;
   items: CreateChecklistTemplateItemData[];
+  // Scheduling fields
+  is_scheduled?: boolean;
+  schedule_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
+  schedule_interval?: number;
+  schedule_days_of_week?: number[];
+  schedule_day_of_month?: number;
+  schedule_time?: string;
+  schedule_start_date?: string;
+  schedule_end_date?: string;
+  schedule_advance_days?: number;
+  auto_assign?: boolean;
 }
 
 export interface CreateChecklistTemplateItemData {
@@ -272,4 +294,67 @@ export interface ChecklistItemUpdate {
 
 export interface AddCommentData {
   content: string;
+}
+
+// Scheduling-specific types
+export interface ChecklistSchedule {
+  id?: number;
+  template_id: number;
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
+  interval: number;
+  days_of_week?: number[];
+  day_of_month?: number;
+  time?: string;
+  timezone?: string;
+  start_date: string;
+  end_date?: string;
+  advance_days: number;
+  auto_assign: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ScheduledGeneration {
+  id: number;
+  template_id: number;
+  property_id: number;
+  generation_date: string;
+  due_date: string;
+  checklist_id?: number;
+  status: 'pending' | 'created' | 'failed';
+  error_message?: string;
+  created_at: string;
+  property_name?: string;
+  checklist_status?: string;
+}
+
+export interface SchedulerStatus {
+  isRunning: boolean;
+  intervalMinutes: number;
+  lastRun?: string;
+  nextRun?: string;
+}
+
+export interface ScheduleGenerationResult {
+  generatedCount: number;
+  errors: Array<{
+    templateId: number;
+    templateName: string;
+    error: string;
+  }>;
+  date: string;
+}
+
+export interface SchedulingFormData {
+  is_scheduled: boolean;
+  schedule_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
+  schedule_interval: number;
+  schedule_days_of_week: number[];
+  schedule_day_of_month: number;
+  schedule_time: string;
+  schedule_start_date: string;
+  schedule_end_date: string;
+  schedule_advance_days: number;
+  auto_assign: boolean;
 }

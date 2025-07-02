@@ -43,7 +43,7 @@ const upload = multer({
 
 module.exports = function(services) {
   const router = express.Router();
-  const { ChecklistService } = services;
+  const { ChecklistService, SchedulerService } = services;
 
   // Template Management Routes
 
@@ -732,6 +732,120 @@ module.exports = function(services) {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch property checklists',
+        message: error.message
+      });
+    }
+  });
+
+  // Scheduling Routes
+
+  // GET /api/checklists/scheduled/templates - Get all scheduled templates
+  router.get('/scheduled/templates', async (req, res) => {
+    try {
+      const tenantId = req.user?.tenant_id || 'default';
+
+      const templates = await ChecklistService.getScheduledTemplates(tenantId);
+
+      res.json({
+        success: true,
+        data: templates,
+        count: templates.length
+      });
+    } catch (error) {
+      logger.error('Error fetching scheduled templates:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch scheduled templates',
+        message: error.message
+      });
+    }
+  });
+
+  // POST /api/checklists/scheduled/generate - Manually trigger scheduled checklist generation
+  router.post('/scheduled/generate', async (req, res) => {
+    try {
+      const { date } = req.body;
+      const targetDate = date ? new Date(date) : new Date();
+
+      const result = await ChecklistService.generateScheduledChecklists(targetDate);
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Generated ${result.generatedCount} checklists for ${result.date}`
+      });
+    } catch (error) {
+      logger.error('Error generating scheduled checklists:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate scheduled checklists',
+        message: error.message
+      });
+    }
+  });
+
+  // GET /api/checklists/scheduled/history/:templateId - Get generation history for a template
+  router.get('/scheduled/history/:templateId', async (req, res) => {
+    try {
+      const { templateId } = req.params;
+      const { limit = 100 } = req.query;
+
+      const history = await ChecklistService.getScheduleGenerationHistory(
+        parseInt(templateId),
+        parseInt(limit)
+      );
+
+      res.json({
+        success: true,
+        data: history,
+        count: history.length
+      });
+    } catch (error) {
+      logger.error('Error fetching schedule generation history:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch schedule generation history',
+        message: error.message
+      });
+    }
+  });
+
+  // Scheduler Management Routes
+
+  // GET /api/checklists/scheduler/status - Get scheduler status
+  router.get('/scheduler/status', async (req, res) => {
+    try {
+      const status = await SchedulerService.getStatus();
+
+      res.json({
+        success: true,
+        data: status
+      });
+    } catch (error) {
+      logger.error('Error fetching scheduler status:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch scheduler status',
+        message: error.message
+      });
+    }
+  });
+
+  // POST /api/checklists/scheduler/trigger - Manually trigger scheduler
+  router.post('/scheduler/trigger', async (req, res) => {
+    try {
+      const result = await SchedulerService.triggerGeneration();
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Generated ${result.generatedCount} checklists`
+      });
+    } catch (error) {
+      logger.error('Error triggering scheduler:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to trigger scheduler',
         message: error.message
       });
     }

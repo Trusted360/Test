@@ -32,7 +32,9 @@ import {
   Select,
   MenuItem,
   Tooltip,
-  Autocomplete
+  Autocomplete,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -48,6 +50,7 @@ import {
   PlayArrow as PlayArrowIcon,
   Approval as ApprovalIcon,
   AttachFile as AttachFileIcon,
+  CameraAlt as CameraAltIcon,
   Comment as CommentIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -67,6 +70,7 @@ import {
 import { checklistService } from '../../services/checklist.service';
 import api from '../../services/api';
 import ChecklistCommentDialog from '../../components/ChecklistCommentDialog';
+import MobileCameraCapture from '../../components/MobileCameraCapture';
 
 interface ChecklistDetailProps {
   editMode?: boolean;
@@ -76,6 +80,8 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +102,10 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Camera capture state
+  const [cameraDialogOpen, setCameraDialogOpen] = useState(false);
+  const [selectedPhotoItemId, setSelectedPhotoItemId] = useState<number | null>(null);
   
   // Assignment state
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
@@ -270,16 +280,27 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
     try {
       setUploading(true);
       
-      // First, we need to get the response_id for this item
+      // Get the item
       const item = checklist.items?.find(i => i.id === selectedItemId);
-      if (!item?.response_id) {
-        setError('Please complete the checklist item before uploading files');
+      if (!item) {
+        setError('Checklist item not found');
         return;
+      }
+      
+      let responseId = item.response_id;
+      
+      // If no response exists, create one first
+      if (!responseId) {
+        const responseData = await api.post(`/checklists/${checklist.id}/items/${selectedItemId}/complete`, {
+          response_value: '', // Empty value to allow file upload
+          notes: 'File attachment pending'
+        });
+        responseId = responseData.data.data.id;
       }
       
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('response_id', item.response_id.toString());
+      formData.append('response_id', responseId.toString());
       
       await api.post(`/checklists/${checklist.id}/attachments`, formData, {
         headers: {
@@ -293,6 +314,49 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCameraCapture = async (file: File) => {
+    if (!selectedPhotoItemId || !checklist) return;
+    
+    try {
+      setUploading(true);
+      
+      // Get the item
+      const item = checklist.items?.find(i => i.id === selectedPhotoItemId);
+      if (!item) {
+        setError('Checklist item not found');
+        return;
+      }
+      
+      let responseId = item.response_id;
+      
+      // If no response exists, create one first
+      if (!responseId) {
+        const responseData = await api.post(`/checklists/${checklist.id}/items/${selectedPhotoItemId}/complete`, {
+          response_value: '', // Empty value to allow photo upload
+          notes: 'Photo attachment pending'
+        });
+        responseId = responseData.data.data.id;
+      }
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('response_id', responseId.toString());
+      
+      await api.post(`/checklists/${checklist.id}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setCameraDialogOpen(false);
+      setSelectedPhotoItemId(null);
+      await loadChecklist();
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to upload photo');
     } finally {
       setUploading(false);
     }
@@ -428,63 +492,74 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
     <Box sx={{ flexGrow: 1 }}>
       <Stack spacing={3}>
         {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box display="flex" alignItems="center" gap={2}>
-            <IconButton onClick={() => navigate('/checklists')}>
-              <ArrowBackIcon />
-            </IconButton>
-            <Box>
-              <Typography variant="h4" gutterBottom>
+        <Box display="flex" flexDirection={isMobile ? "column" : "row"} justifyContent="space-between" alignItems={isMobile ? "center" : "center"} gap={isMobile ? 2 : 0}>
+          <Box sx={{ width: isMobile ? '100%' : 'auto' }}>
+            <Box display="flex" alignItems="center" gap={1} sx={{ justifyContent: isMobile ? 'flex-start' : 'flex-start', mb: isMobile ? 1 : 0 }}>
+              <IconButton onClick={() => navigate('/checklists')} sx={{ p: isMobile ? 0.5 : 1 }}>
+                <ArrowBackIcon />
+              </IconButton>
+              <Typography variant={isMobile ? "h6" : "h5"}>Checklist</Typography>
+            </Box>
+            <Box sx={{ px: isMobile ? 2 : 0 }}>
+              <Typography variant={isMobile ? "h5" : "h4"} gutterBottom sx={{ textAlign: isMobile ? 'center' : 'left' }}>
                 {checklist.template_name || `Checklist #${checklist.id}`}
               </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
+              <Typography variant={isMobile ? "body2" : "subtitle1"} color="text.secondary" sx={{ textAlign: isMobile ? 'center' : 'left' }}>
                 {checklist.property_name} - {checklist.property_address}
               </Typography>
             </Box>
           </Box>
-          <Stack direction="row" spacing={2}>
+          <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
             {isEditing && (
               <Button
                 variant="outlined"
-                startIcon={<PersonIcon />}
+                startIcon={!isMobile ? <PersonIcon /> : undefined}
                 onClick={() => {
                   loadUsers();
                   setAssignmentDialogOpen(true);
                 }}
+                size={isMobile ? "small" : "medium"}
+                fullWidth={isMobile}
               >
-                Assign User
+                {isMobile ? "Assign" : "Assign User"}
               </Button>
             )}
             {isEditing && (
               <Button
                 variant="outlined"
-                startIcon={<CalendarTodayIcon />}
+                startIcon={!isMobile ? <CalendarTodayIcon /> : undefined}
                 onClick={() => setDueDateDialogOpen(true)}
+                size={isMobile ? "small" : "medium"}
+                fullWidth={isMobile}
               >
-                Edit Due Date
+                {isMobile ? "Due Date" : "Edit Due Date"}
               </Button>
             )}
             {canSubmitForApproval && (
               <Button
                 variant="contained"
                 color="success"
-                startIcon={<SendIcon />}
+                startIcon={!isMobile ? <SendIcon /> : undefined}
                 onClick={handleSubmitForApproval}
                 disabled={saving}
+                size={isMobile ? "small" : "medium"}
+                fullWidth={isMobile}
               >
-                Mark as Complete
+                {isMobile ? "Complete" : "Mark as Complete"}
               </Button>
             )}
             {!isEditing && (checklist.status === 'in_progress' || checklist.status === 'pending') && (
               <Button
                 variant="outlined"
-                startIcon={<EditIcon />}
+                startIcon={!isMobile ? <EditIcon /> : undefined}
                 onClick={() => {
                   navigate(`/checklists/${id}/edit`);
                   setIsEditing(true);
                 }}
+                size={isMobile ? "small" : "medium"}
+                fullWidth={isMobile}
               >
-                Edit Mode
+                {isMobile ? "Edit" : "Edit Mode"}
               </Button>
             )}
             {isEditing && (
@@ -510,14 +585,14 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
         )}
 
         {/* Status and Progress */}
-        <Grid container spacing={3}>
+        <Grid container spacing={isMobile ? 2 : 3}>
           <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 3 }}>
+            <Paper sx={{ p: isMobile ? 2 : 3 }}>
               <Stack spacing={3}>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Box display="flex" alignItems="center" gap={2}>
+                <Box display="flex" flexDirection={isMobile ? "column" : "row"} justifyContent="space-between" alignItems={isMobile ? "center" : "center"} gap={isMobile ? 1 : 0}>
+                  <Box display="flex" alignItems="center" gap={1}>
                     {getStatusIcon(checklist.status)}
-                    <Typography variant="h6">
+                    <Typography variant={isMobile ? "body1" : "h6"}>
                       Status: {checklistService.formatStatus(checklist.status)}
                     </Typography>
                   </Box>
@@ -525,6 +600,7 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
                     <Chip
                       label={`Due: ${formatDate(checklist.due_date)}`}
                       color={checklistService.isOverdue(checklist) ? 'error' : 'default'}
+                      size={isMobile ? "small" : "medium"}
                     />
                   )}
                 </Box>
@@ -547,8 +623,8 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: isMobile ? 2 : 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ textAlign: isMobile ? 'center' : 'left' }}>
                 Details
               </Typography>
               <Stack spacing={2}>
@@ -584,11 +660,11 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
         </Grid>
 
         {/* Checklist Items */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper sx={{ p: isMobile ? 1 : 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ px: isMobile ? 1 : 0, textAlign: isMobile ? 'center' : 'left' }}>
             Checklist Items
           </Typography>
-          <List>
+          <List sx={{ p: 0 }}>
             {checklist.items?.map((item, index) => {
               const isExpanded = expandedItems.has(item.id);
               const itemUpdate = itemUpdates.get(item.id);
@@ -601,12 +677,13 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
               return (
                 <React.Fragment key={item.id}>
                   {index > 0 && <Divider />}
-                  <ListItem>
-                    <ListItemIcon>
+                  <ListItem sx={{ px: isMobile ? 1 : 2 }}>
+                    <ListItemIcon sx={{ minWidth: isMobile ? 36 : 56 }}>
                       <Checkbox
                         checked={itemUpdate?.status === 'completed'}
                         onChange={() => handleItemToggle(item)}
                         disabled={!isEditing || (checklist.status !== 'in_progress' && checklist.status !== 'pending') || saving}
+                        size={isMobile ? "small" : "medium"}
                       />
                     </ListItemIcon>
                     <ListItemText
@@ -627,58 +704,184 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
                       }
                       secondary={item.description}
                     />
-                    <ListItemSecondaryAction>
-                      <Stack direction="row" spacing={1}>
-                        {hasChanges && isEditing && (
-                          <Tooltip title="Save Changes">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => handleSaveItem(item)}
-                              disabled={saving}
-                            >
-                              <SaveIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        <Tooltip title="Comments">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenCommentDialog(item);
-                            }}
-                          >
-                            <CommentIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={!item.response_id ? "Complete item first to attach files" : "Attach File"}>
-                          <span>
+                    {!isMobile && (
+                      <ListItemSecondaryAction>
+                        <Stack direction="row" spacing={1}>
+                          {hasChanges && isEditing && (
+                            <Tooltip title="Save Changes">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleSaveItem(item)}
+                                disabled={saving}
+                              >
+                                <SaveIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          <Tooltip title="Comments">
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedItemId(item.id);
-                                setUploadDialogOpen(true);
+                                handleOpenCommentDialog(item);
                               }}
-                              disabled={!isEditing || !item.response_id}
                             >
-                              <AttachFileIcon />
+                              <CommentIcon />
                             </IconButton>
-                          </span>
-                        </Tooltip>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => toggleItemExpanded(item.id, e)}
-                        >
-                          {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                        </IconButton>
-                      </Stack>
-                    </ListItemSecondaryAction>
+                          </Tooltip>
+                          {item.item_type === 'photo' || item.item_type === 'file_upload' ? (
+                            <>
+                              <Tooltip title="Take Photo">
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPhotoItemId(item.id);
+                                      setCameraDialogOpen(true);
+                                    }}
+                                    disabled={!isEditing}
+                                    color="primary"
+                                  >
+                                    <CameraAltIcon />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              {item.item_type === 'file_upload' && (
+                                <Tooltip title="Attach File">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedItemId(item.id);
+                                        setUploadDialogOpen(true);
+                                      }}
+                                      disabled={!isEditing}
+                                    >
+                                      <AttachFileIcon />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              )}
+                            </>
+                          ) : item.item_type !== 'checkbox' && item.item_type !== 'text' && item.item_type !== 'signature' ? (
+                            <Tooltip title="Attach File">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItemId(item.id);
+                                    setUploadDialogOpen(true);
+                                  }}
+                                  disabled={!isEditing}
+                                >
+                                  <AttachFileIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : null}
+                          <IconButton
+                            size="small"
+                            onClick={(e) => toggleItemExpanded(item.id, e)}
+                          >
+                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          </IconButton>
+                        </Stack>
+                      </ListItemSecondaryAction>
+                    )}
                   </ListItem>
                   
+                  {/* Mobile Action Buttons */}
+                  {isMobile && (
+                    <Box sx={{ px: 2, pb: 1 }}>
+                      <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" sx={{ gap: 0.5 }}>
+                        {hasChanges && isEditing && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            onClick={() => handleSaveItem(item)}
+                            disabled={saving}
+                            startIcon={<SaveIcon />}
+                          >
+                            Save
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCommentDialog(item);
+                          }}
+                          startIcon={<CommentIcon />}
+                        >
+                          Comment
+                        </Button>
+                        {item.item_type === 'photo' || (isMobile && item.item_type === 'file_upload') ? (
+                          <>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPhotoItemId(item.id);
+                                setCameraDialogOpen(true);
+                              }}
+                              disabled={!isEditing}
+                              color="primary"
+                              startIcon={<CameraAltIcon />}
+                            >
+                              Photo
+                            </Button>
+                            {item.item_type === 'file_upload' && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedItemId(item.id);
+                                  setUploadDialogOpen(true);
+                                }}
+                                disabled={!isEditing}
+                                startIcon={<AttachFileIcon />}
+                              >
+                                File
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedItemId(item.id);
+                              setUploadDialogOpen(true);
+                            }}
+                            disabled={!isEditing}
+                            startIcon={<AttachFileIcon />}
+                          >
+                            File
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={(e) => toggleItemExpanded(item.id, e)}
+                          startIcon={isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        >
+                          {isExpanded ? "Less" : "More"}
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )}
+                  
                   <Collapse in={isExpanded}>
-                    <Box sx={{ pl: 7, pr: 2, pb: 2 }}>
+                    <Box sx={{ pl: isMobile ? 2 : 7, pr: 2, pb: 2 }}>
                       <Stack spacing={2}>
                         {isEditing && (
                           <TextField
@@ -801,6 +1004,7 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
           onClose={() => setUploadDialogOpen(false)}
           maxWidth="sm"
           fullWidth
+          fullScreen={isMobile}
         >
           <DialogTitle>Attach File</DialogTitle>
           <DialogContent>
@@ -852,6 +1056,7 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
           onClose={() => setAssignmentDialogOpen(false)}
           maxWidth="sm"
           fullWidth
+          fullScreen={isMobile}
         >
           <DialogTitle>Assign Checklist</DialogTitle>
           <DialogContent>
@@ -902,6 +1107,7 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
           onClose={() => setDueDateDialogOpen(false)}
           maxWidth="sm"
           fullWidth
+          fullScreen={isMobile}
         >
           <DialogTitle>Edit Due Date</DialogTitle>
           <DialogContent>
@@ -935,6 +1141,17 @@ const ChecklistDetail: React.FC<ChecklistDetailProps> = ({ editMode: initialEdit
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Mobile Camera Capture Dialog */}
+        <MobileCameraCapture
+          open={cameraDialogOpen}
+          onCapture={handleCameraCapture}
+          onCancel={() => {
+            setCameraDialogOpen(false);
+            setSelectedPhotoItemId(null);
+          }}
+          uploading={uploading}
+        />
       </Stack>
     </Box>
   );

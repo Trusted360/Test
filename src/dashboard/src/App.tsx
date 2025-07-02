@@ -22,6 +22,9 @@ const Reports = lazy(() => import('@pages/Audit'));
 const PropertyManagerDashboard = lazy(() => import('@pages/PropertyManager/PropertyManagerDashboard'));
 const ActionItemsReport = lazy(() => import('@pages/PropertyManager/ActionItemsReport'));
 
+// User Management pages
+const Users = lazy(() => import('@pages/Users'));
+
 // Admin pages
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
 const SqlConsole = lazy(() => import('@pages/Admin/SqlConsole'));
@@ -193,6 +196,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ActionItemsReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <Users />
               </ProtectedRoute>
             }
           />

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip, Alert as MuiAlert } from '@mui/material';
+import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
   Business as BusinessIcon, 
   Add as AddIcon, 
   Assignment as AssignmentIcon,
-  Warning as WarningIcon,
   Videocam as VideocamIcon,
-  Security as SecurityIcon
+  Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -31,15 +30,15 @@ const Dashboard: React.FC = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [recentChecklists, setRecentChecklists] = useState<Checklist[]>([]);
   const [checklistsLoading, setChecklistsLoading] = useState(true);
-  const [activeAlerts, setActiveAlerts] = useState<VideoAlert[]>([]);
-  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [scheduledTemplates, setScheduledTemplates] = useState<any[]>([]);
+  const [scheduledLoading, setScheduledLoading] = useState(true);
   const [videoEvents, setVideoEvents] = useState<VideoAlert[]>([]);
   const [videoEventsLoading, setVideoEventsLoading] = useState(true);
 
   useEffect(() => {
     loadProperties();
     loadRecentChecklists();
-    loadActiveAlerts();
+    loadScheduledTemplates();
     loadVideoEvents();
   }, []);
 
@@ -68,20 +67,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadActiveAlerts = async () => {
+  const loadScheduledTemplates = async () => {
     try {
-      setAlertsLoading(true);
-      const response = await videoService.getAlerts({ 
-        status: 'active', 
-        limit: 5 
-      });
-      setActiveAlerts(response.data);
+      setScheduledLoading(true);
+      const response = await checklistService.getTemplates({ is_scheduled: true });
+      // Get active scheduled templates
+      setScheduledTemplates(response.data.filter((template: any) => template.is_active && template.is_scheduled).slice(0, 5));
     } catch (error) {
-      console.error('Error loading active alerts:', error);
+      console.error('Error loading scheduled templates:', error);
     } finally {
-      setAlertsLoading(false);
+      setScheduledLoading(false);
     }
   };
+
 
   const loadVideoEvents = async () => {
     try {
@@ -118,6 +116,19 @@ const Dashboard: React.FC = () => {
     const propertyName = checklist.property?.name || checklist.property_name || 'Unknown Property';
     const createdDate = new Date(checklist.created_at).toLocaleDateString();
     return `Checklist for ${propertyName} (${createdDate})`;
+  };
+
+  const formatScheduleFrequency = (template: any): string => {
+    if (!template.schedule_frequency) return 'Not scheduled';
+    
+    const frequency = template.schedule_frequency;
+    const interval = template.schedule_interval || 1;
+    
+    if (interval === 1) {
+      return frequency.charAt(0).toUpperCase() + frequency.slice(1);
+    } else {
+      return `Every ${interval} ${frequency}${frequency.endsWith('ly') ? '' : 's'}`;
+    }
   };
 
   return (
@@ -270,57 +281,84 @@ const Dashboard: React.FC = () => {
               )}
             </StyledPaper>
           </Grid>
-          
+
+          {/* Scheduled Templates */}
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6" display="flex" alignItems="center" gap={1}>
-                  <WarningIcon />
-                  Active Alerts
+                  <ScheduleIcon />
+                  Scheduled Templates
                 </Typography>
                 <Button
                   variant="outlined"
                   size="small"
-                  onClick={() => navigate('/video')}
+                  onClick={() => navigate('/checklists')}
                 >
                   View All
                 </Button>
               </Box>
               
-              {alertsLoading ? (
+              {scheduledLoading ? (
                 <Box display="flex" justifyContent="center" py={2}>
                   <CircularProgress size={24} />
                 </Box>
-              ) : activeAlerts.length > 0 ? (
+              ) : scheduledTemplates.length > 0 ? (
                 <Stack spacing={1}>
-                  {activeAlerts.map((alert) => (
-                    <MuiAlert 
-                      key={alert.id} 
-                      severity={getSeverityColor(alert.severity)}
-                      variant="outlined"
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/video/alerts/${alert.id}`)}
+                  {scheduledTemplates.map((template) => (
+                    <Paper 
+                      key={template.id} 
+                      variant="outlined" 
+                      sx={{ p: 1.5, cursor: 'pointer' }}
+                      onClick={() => navigate('/checklists')}
                     >
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium">
-                          {alert.alert_type_name}
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {alert.camera_name} • {alert.property_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(alert.created_at).toLocaleString()}
-                        </Typography>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="medium">
+                            {template.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatScheduleFrequency(template)} • {checklistService.formatCategory(template.category)}
+                          </Typography>
+                          {template.schedule_time && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Generates at {template.schedule_time}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Stack spacing={0.5} alignItems="flex-end">
+                          <Chip
+                            label="Scheduled"
+                            color="primary"
+                            size="small"
+                            variant="outlined"
+                          />
+                          {template.auto_assign && (
+                            <Chip
+                              label="Auto-assign"
+                              color="secondary"
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                        </Stack>
                       </Box>
-                    </MuiAlert>
+                    </Paper>
                   ))}
                 </Stack>
               ) : (
                 <Box textAlign="center" py={3}>
-                  <SecurityIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    No active alerts. All monitored systems are operating normally.
+                    No scheduled templates configured yet.
                   </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate('/checklists')}
+                    size="small"
+                  >
+                    Create Scheduled Template
+                  </Button>
                 </Box>
               )}
             </StyledPaper>
@@ -395,17 +433,6 @@ const Dashboard: React.FC = () => {
                   </Typography>
                 </Box>
               )}
-            </StyledPaper>
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <StyledPaper elevation={2}>
-              <Typography variant="h6" gutterBottom>
-                AI Assistant
-              </Typography>
-              <Typography variant="body2">
-                Get intelligent assistance with property management and security audits.
-              </Typography>
             </StyledPaper>
           </Grid>
         </Grid>
