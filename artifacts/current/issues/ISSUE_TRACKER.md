@@ -1,16 +1,31 @@
 # Trusted360 Issue Tracker
 
-**Last Updated:** 2025-06-24  
-**Status:** Critical Issues Resolved - Focus on P1 Features
+**Last Updated:** 2025-07-02  
+**Status:** Multiple Critical Issues - Settings, Properties, and Auditing Priority
 
 ## Overview
 This document tracks all known issues, bugs, and feature requests for the Trusted360 self-storage security platform.
 
-## Recent Updates (2025-06-24)
+## Recent Updates (2025-07-02)
+**Current State:**
+- ✅ **Settings Module**: Working correctly
+- ✅ **Properties Module**: Working correctly
+- 🔴 **Auditing/Reporting**: Two implementations exist but neither serves the needs well - requires comprehensive overhaul
+
+## Previous Updates (2025-06-24)
 **All Critical P0 Issues Resolved:**
 - ✅ **Settings Module**: Fixed missing routes - all settings endpoints now functional
 - ✅ **Properties Module**: Fixed column name mismatch - property creation working
 - ✅ **IAM Analysis**: Core authentication working - clarified as user management feature request
+
+**Major Feature Completed:**
+- ✅ **Property Manager Reporting System**: Implemented comprehensive reporting system focused on property manager needs
+  - Enhanced checklist tracking with issue severity levels
+  - Action items system for follow-up tasks
+  - Property health dashboard with attention alerts
+  - Staff performance metrics
+  - Recurring issues analysis
+  - API endpoints and frontend UI completed
 
 The system is now stable with all core functionality operational. Focus can shift to P1 features and enhancements.
 
@@ -18,64 +33,82 @@ The system is now stable with all core functionality operational. Focus can shif
 
 ## Critical Issues (P0 - Blocking)
 
-### 🔴 Settings Module - Complete Failure
-**Status:** RESOLVED  
+### ✅ Settings Module
+**Status:** WORKING  
 **Component:** Settings  
-**Description:** ~~All settings functionality is non-functional~~ **FIXED:** Missing settings routes file
-- [x] Failed to load settings - **FIXED:** Created `/src/api/src/routes/settings.routes.js`
-- [x] User preferences fail to save - **FIXED:** Added settings routes to main router
-- [x] Integration settings fail to save - **FIXED:** Settings API endpoints now working
-- [x] Camera settings fail to save - **FIXED:** All settings endpoints functional
-- [x] Notifications fail to save - **FIXED:** Settings service restored
+**Description:** Settings functionality is operational
+- [x] Settings load correctly
+- [x] User preferences save properly
+- [x] Integration settings save properly
+- [x] Camera settings save properly
+- [x] Notifications save properly
 
-**Resolution:** Settings routes were missing from the newer API structure. Created settings.routes.js and integrated into main routes.
+**Note:** Confirmed working as of 2025-07-02.
 
-### 🔴 Properties Module - Creation Failure
-**Status:** RESOLVED  
+### ✅ Properties Module
+**Status:** WORKING  
 **Component:** Properties  
-**Description:** ~~Unable to create new properties~~ **FIXED:** Column name mismatch in property service
-- [x] Investigate creation workflow - **FIXED:** Property service using wrong column name
-- [x] Fix database constraints - **FIXED:** Changed `property_type` to `property_type_id` in service
-- [x] Test property assignment flow - **FIXED:** Property creation now working
+**Description:** Property creation is functional
+- [x] Property creation works
+- [x] Database schema matches service
+- [x] Property workflow tested and operational
 
-**Resolution:** Property service was using `property_type` column name but database has `property_type_id`. Updated all references in property.service.js.
+**Note:** Confirmed working as of 2025-07-02.
 
-### 🔴 IAM Issues
-**Status:** CLARIFIED  
+### 🔴 IAM/User Management
+**Status:** CRITICAL FEATURE MISSING  
 **Component:** User Management  
-**Description:** ~~Identity and Access Management problems~~ **ANALYSIS:** Authentication works, missing user management features
-- [x] Define specific IAM failures - **ANALYSIS:** Auth middleware and permissions are working correctly
-- [x] Fix permission system - **VERIFIED:** Role-based access control is functional
-- [x] Test role-based access - **VERIFIED:** Admin/user roles properly restricted
+**Description:** User management interface is completely missing
+- [ ] Create user management UI
+- [ ] Implement user CRUD operations
+- [ ] Add role assignment interface
+- [ ] Enable user activation/deactivation
+- [ ] Add password reset functionality
 
-**Analysis:** Core IAM functionality (authentication, authorization, role-based access) is working properly. The "IAM issues" appear to be missing user management features (create/edit/delete users) rather than broken authentication. This should be reclassified as a feature request for user management admin interface.
+**Note:** While authentication works, there's no way to manage users through the UI.
 
 ---
 
 ## High Priority Issues (P1 - Major Features)
 
-### 🟡 Auditing & Reporting System
-**Status:** OPEN  
-**Component:** Reporting  
-**Description:** Key feature for admin/property owner oversight
-- [ ] Design database schema for audit trails
-- [ ] Implement activity tracking for:
-  - [ ] Checklist creation and completion
-  - [ ] User assignments
-  - [ ] Video events (triggered, completed, checklist creation)
-  - [ ] Template creation
-- [ ] Create reporting UI/dashboard
-- [ ] Enable report generation and export
+### 🔴 Auditing & Reporting System Overhaul
+**Status:** NEEDS COMPREHENSIVE REDESIGN  
+**Component:** Auditing/Reporting  
+**Description:** Two separate implementations exist (Property Manager Reporting & basic Auditing) but neither adequately serves the critical need for comprehensive activity tracking and reporting
 
-### 🟡 Checklist & Templates - Database Constraints
+**Current State:**
+- Property Manager Reporting: Focuses on checklist/inspection summaries but lacks comprehensive activity tracking
+- Basic Auditing: Limited scope, doesn't capture all user activities
+
+**Requirements for Proper Implementation:**
+- [ ] Unified audit trail capturing ALL user activities:
+  - [ ] Checklist creation, assignment, and completion with timestamps
+  - [ ] Video events (triggered, resolved, checklist generation)
+  - [ ] Template creation and modifications
+  - [ ] User logins and access patterns
+  - [ ] All CRUD operations across the system
+- [ ] Comprehensive reporting dashboard for admins/owners:
+  - [ ] Activity timelines by user, property, or action type
+  - [ ] Compliance reports showing task completion rates
+  - [ ] Security audit trails for access and changes
+  - [ ] Performance metrics and trend analysis
+- [ ] Export capabilities (CSV, PDF) for external review
+- [ ] Real-time activity monitoring
+- [ ] Configurable retention policies
+
+**Note:** This is a CRITICAL feature for property oversight. Current implementations are inadequate for providing the comprehensive audit trail and reporting capabilities that property owners/admins require for oversight and compliance.
+
+### 🟡 Checklist & Templates - Multiple Issues
 **Status:** OPEN  
 **Component:** Checklists  
-**Error:** `delete from "checklist_items" where "template_id" = $1 violates foreign key constraint`
-- [ ] Fix foreign key constraint issue
-- [ ] Implement cascade delete or proper cleanup
+**Issues:**
+- [ ] Search field does nothing
 - [ ] Add property selection as first field
-- [ ] Fix search functionality
-- [ ] Control template availability based on property
+- [ ] Implement property-based template filtering
+- [ ] Templates should be property-specific in Video page
+- [ ] Templates should be property-specific in Create Checklist
+- [ ] Fix foreign key constraint on deletion
+- [ ] Implement cascade delete or proper cleanup
 
 ---
 
@@ -118,6 +151,16 @@ The system is now stable with all core functionality operational. Focus can shif
 - [ ] Improve mobile responsiveness
 
 ---
+
+### 🟡 Alert System
+**Status:** NOT IMPLEMENTED  
+**Component:** Alerts  
+**Description:** Alert system implementation needed
+- [ ] Design alert schema and types
+- [ ] Implement alert generation logic
+- [ ] Create alert notification system
+- [ ] Build alert management UI
+- [ ] Add alert preferences per user
 
 ## Feature Requests
 

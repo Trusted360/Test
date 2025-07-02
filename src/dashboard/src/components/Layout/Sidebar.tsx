@@ -19,7 +19,8 @@ import {
   Business as BusinessIcon,
   Assignment as ChecklistIcon,
   Videocam as VideoIcon,
-  Assessment as ReportsIcon
+  Assessment as ReportsIcon,
+  ManageAccounts as PropertyManagerIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -73,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     { text: 'Checklists', icon: <ChecklistIcon />, path: '/checklists' },
     { text: 'Video Analysis', icon: <VideoIcon />, path: '/video' },
     { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
+    { text: 'Property Manager', icon: <PropertyManagerIcon />, path: '/property-manager' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
     ...(hasAdminAccess ? [{ text: 'Admin Portal', icon: <AdminIcon />, path: '/admin' }] : []),
   ];
