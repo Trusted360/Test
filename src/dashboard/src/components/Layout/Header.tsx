@@ -70,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
         </IconButton>
         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
           <img 
-            src="/assets/logos/trusted360-logo-small.svg" 
+            src="/logo.png" 
             alt="Trusted 360" 
             style={{ 
               height: isMobile ? '28px' : '32px', 
