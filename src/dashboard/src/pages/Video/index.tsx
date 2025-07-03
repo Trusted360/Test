@@ -234,13 +234,25 @@ const VideoAnalysis: React.FC = () => {
       case 'door_left_open':
         return <DoorFrontIcon />;
       case 'fire_alarm':
+      case 'fire':
         return <FireIcon />;
-      case 'person_detected':
-        return <PersonIcon />;
       case 'vehicle_accident':
+      case 'vehicle_detected':
+      case 'parking_violation':
+      case 'parking':
         return <CarIcon />;
+      case 'person_detected':
+      case 'motion_detected':
+      case 'motion':
+        return <PersonIcon />;
       case 'animal_detected':
         return <PetsIcon />;
+      case 'malfunction':
+      case 'equipment_malfunction':
+        return <BuildIcon />;
+      case 'unauthorized_access':
+      case 'security_breach':
+        return <SecurityIcon />;
       default:
         return <WarningIcon />;
     }

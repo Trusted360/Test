@@ -77,7 +77,25 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type_ids = [], category, items = [], created_by } = templateData;
+      const { 
+        name, 
+        description, 
+        property_type_ids = [], 
+        category, 
+        items = [], 
+        created_by,
+        // Scheduling fields
+        is_scheduled = false,
+        schedule_frequency,
+        schedule_interval = 1,
+        schedule_days_of_week,
+        schedule_day_of_month,
+        schedule_time,
+        schedule_start_date,
+        schedule_end_date,
+        schedule_advance_days = 0,
+        auto_assign = false
+      } = templateData;
 
       // Create template
       const [template] = await trx('checklist_templates')
@@ -87,6 +105,16 @@ class ChecklistService {
           category: category || 'inspection', // Use provided category or default to 'inspection'
           tenant_id: tenantId,
           created_by,
+          is_scheduled,
+          schedule_frequency,
+          schedule_interval,
+          schedule_days_of_week: schedule_days_of_week ? JSON.stringify(schedule_days_of_week) : null,
+          schedule_day_of_month,
+          schedule_time,
+          schedule_start_date,
+          schedule_end_date,
+          schedule_advance_days,
+          auto_assign,
           created_at: new Date(),
           updated_at: new Date()
         })
@@ -147,7 +175,24 @@ class ChecklistService {
     const trx = await this.knex.transaction();
     
     try {
-      const { name, description, property_type_ids = [], category, items = [] } = templateData;
+      const { 
+        name, 
+        description, 
+        property_type_ids = [], 
+        category, 
+        items = [],
+        // Scheduling fields
+        is_scheduled = false,
+        schedule_frequency,
+        schedule_interval = 1,
+        schedule_days_of_week,
+        schedule_day_of_month,
+        schedule_time,
+        schedule_start_date,
+        schedule_end_date,
+        schedule_advance_days = 0,
+        auto_assign = false
+      } = templateData;
 
       // Update template
       await trx('checklist_templates')
@@ -157,6 +202,16 @@ class ChecklistService {
           name,
           description,
           category: category || 'inspection', // Use provided category or default to 'inspection'
+          is_scheduled,
+          schedule_frequency,
+          schedule_interval,
+          schedule_days_of_week: schedule_days_of_week ? JSON.stringify(schedule_days_of_week) : null,
+          schedule_day_of_month,
+          schedule_time,
+          schedule_start_date,
+          schedule_end_date,
+          schedule_advance_days,
+          auto_assign,
           updated_at: new Date()
         });
 
@@ -1189,6 +1244,277 @@ class ChecklistService {
       return await this.getChecklists(tenantId, filters);
     } catch (error) {
       logger.error('Error fetching checklists by user:', error);
+      throw error;
+    }
+  }
+
+  // Scheduling Methods
+  async generateScheduledChecklists(date = null) {
+    try {
+      const targetDate = date || new Date();
+      const dateStr = targetDate.toISOString().split('T')[0];
+      
+      logger.info(`Generating scheduled checklists for date: ${dateStr}`);
+
+      // Get all active scheduled templates
+      const scheduledTemplates = await this.knex('checklist_templates')
+        .where('is_scheduled', true)
+        .where('is_active', true)
+        .where(function() {
+          this.whereNull('schedule_start_date')
+              .orWhere('schedule_start_date', '<=', targetDate);
+        })
+        .where(function() {
+          this.whereNull('schedule_end_date')
+              .orWhere('schedule_end_date', '>=', targetDate);
+        });
+
+      let generatedCount = 0;
+      const errors = [];
+
+      for (const template of scheduledTemplates) {
+        try {
+          if (this.shouldGenerateForDate(template, targetDate)) {
+            const count = await this.generateChecklistsForTemplate(template, targetDate);
+            generatedCount += count;
+          }
+        } catch (error) {
+          logger.error(`Error generating checklists for template ${template.id}:`, error);
+          errors.push({
+            templateId: template.id,
+            templateName: template.name,
+            error: error.message
+          });
+        }
+      }
+
+      logger.info(`Generated ${generatedCount} scheduled checklists for ${dateStr}`);
+      
+      return {
+        generatedCount,
+        errors,
+        date: dateStr
+      };
+    } catch (error) {
+      logger.error('Error generating scheduled checklists:', error);
+      throw error;
+    }
+  }
+
+  shouldGenerateForDate(template, targetDate) {
+    const { schedule_frequency, schedule_interval, schedule_days_of_week, schedule_day_of_month } = template;
+    
+    switch (schedule_frequency) {
+      case 'daily':
+        return true; // Generate every day
+        
+      case 'weekly':
+        if (schedule_days_of_week) {
+          const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+          const allowedDays = JSON.parse(schedule_days_of_week);
+          return allowedDays.includes(dayOfWeek);
+        }
+        return targetDate.getDay() === 1; // Default to Monday
+        
+      case 'bi-weekly':
+        if (schedule_days_of_week) {
+          const dayOfWeek = targetDate.getDay();
+          const allowedDays = JSON.parse(schedule_days_of_week);
+          if (!allowedDays.includes(dayOfWeek)) return false;
+        }
+        // Check if it's the right bi-weekly interval
+        const weeksSinceStart = Math.floor((targetDate - new Date(template.schedule_start_date)) / (7 * 24 * 60 * 60 * 1000));
+        return weeksSinceStart % 2 === 0;
+        
+      case 'monthly':
+        if (schedule_day_of_month) {
+          return targetDate.getDate() === schedule_day_of_month;
+        }
+        return targetDate.getDate() === 1; // Default to first day of month
+        
+      case 'quarterly':
+        const month = targetDate.getMonth();
+        const day = targetDate.getDate();
+        const dayOfMonth = schedule_day_of_month || 1;
+        return (month % 3 === 0) && (day === dayOfMonth); // Jan, Apr, Jul, Oct
+        
+      case 'yearly':
+        const startDate = new Date(template.schedule_start_date);
+        return targetDate.getMonth() === startDate.getMonth() && 
+               targetDate.getDate() === startDate.getDate();
+               
+      default:
+        return false;
+    }
+  }
+
+  async generateChecklistsForTemplate(template, targetDate) {
+    const trx = await this.knex.transaction();
+    let generatedCount = 0;
+    
+    try {
+      // Get properties associated with this template
+      let propertyQuery = this.knex('properties as p')
+        .select('p.*')
+        .where('p.tenant_id', template.tenant_id)
+        .where('p.status', 'active');
+
+      // If template has property type restrictions, apply them
+      const hasPropertyTypes = await trx('template_property_types')
+        .where('template_id', template.id)
+        .first();
+
+      if (hasPropertyTypes) {
+        propertyQuery = propertyQuery
+          .join('template_property_types as tpt', 'p.property_type_id', 'tpt.property_type_id')
+          .where('tpt.template_id', template.id);
+      }
+
+      const properties = await propertyQuery;
+
+      for (const property of properties) {
+        // Check if checklist already generated for this date
+        const existingGeneration = await trx('scheduled_checklist_generations')
+          .where('template_id', template.id)
+          .where('property_id', property.id)
+          .where('generation_date', targetDate.toISOString().split('T')[0])
+          .first();
+
+        if (existingGeneration) {
+          continue; // Skip if already generated
+        }
+
+        // Calculate due date
+        const dueDate = new Date(targetDate);
+        dueDate.setDate(dueDate.getDate() + (template.schedule_advance_days || 0));
+
+        try {
+          // Create the checklist
+          const [checklist] = await trx('property_checklists')
+            .insert({
+              property_id: property.id,
+              template_id: template.id,
+              assigned_to: template.auto_assign ? await this.getPropertyManager(property.id) : null,
+              due_date: dueDate,
+              status: 'pending',
+              created_at: new Date()
+            })
+            .returning('*');
+
+          // Record the generation
+          await trx('scheduled_checklist_generations')
+            .insert({
+              template_id: template.id,
+              property_id: property.id,
+              generation_date: targetDate.toISOString().split('T')[0],
+              due_date: dueDate.toISOString().split('T')[0],
+              checklist_id: checklist.id,
+              status: 'created'
+            });
+
+          generatedCount++;
+
+          // Log audit event
+          if (this.auditService) {
+            await this.auditService.logEvent('checklist', 'scheduled_created', {
+              userId: null,
+              tenantId: template.tenant_id,
+              propertyId: property.id,
+              entityType: 'checklist',
+              entityId: checklist.id,
+              description: `Auto-generated scheduled checklist: ${template.name}`,
+              metadata: {
+                templateId: template.id,
+                templateName: template.name,
+                propertyName: property.name,
+                scheduleFrequency: template.schedule_frequency,
+                generationDate: targetDate.toISOString().split('T')[0],
+                dueDate: dueDate.toISOString().split('T')[0]
+              }
+            });
+          }
+
+        } catch (error) {
+          // Record failed generation
+          await trx('scheduled_checklist_generations')
+            .insert({
+              template_id: template.id,
+              property_id: property.id,
+              generation_date: targetDate.toISOString().split('T')[0],
+              due_date: dueDate.toISOString().split('T')[0],
+              status: 'failed',
+              error_message: error.message
+            });
+
+          logger.error(`Failed to create checklist for template ${template.id}, property ${property.id}:`, error);
+        }
+      }
+
+      await trx.commit();
+      return generatedCount;
+    } catch (error) {
+      await trx.rollback();
+      throw error;
+    }
+  }
+
+  async getPropertyManager(propertyId) {
+    try {
+      // Get property manager for auto-assignment
+      // This is a simplified implementation - in practice you might have a more complex assignment logic
+      const manager = await this.knex('users as u')
+        .join('user_roles as ur', 'u.id', 'ur.user_id')
+        .join('roles as r', 'ur.role_id', 'r.id')
+        .where('r.name', 'manager')
+        .where('u.is_active', true)
+        .first();
+
+      return manager ? manager.id : null;
+    } catch (error) {
+      logger.error('Error getting property manager:', error);
+      return null;
+    }
+  }
+
+  async getScheduledTemplates(tenantId) {
+    try {
+      const templates = await this.knex('checklist_templates')
+        .where('tenant_id', tenantId)
+        .where('is_scheduled', true)
+        .where('is_active', true)
+        .orderBy('name');
+
+      // Parse JSON fields
+      for (const template of templates) {
+        if (template.schedule_days_of_week) {
+          template.schedule_days_of_week = JSON.parse(template.schedule_days_of_week);
+        }
+      }
+
+      return templates;
+    } catch (error) {
+      logger.error('Error fetching scheduled templates:', error);
+      throw error;
+    }
+  }
+
+  async getScheduleGenerationHistory(templateId, limit = 100) {
+    try {
+      const history = await this.knex('scheduled_checklist_generations as scg')
+        .select(
+          'scg.*',
+          'p.name as property_name',
+          'pc.status as checklist_status'
+        )
+        .leftJoin('properties as p', 'scg.property_id', 'p.id')
+        .leftJoin('property_checklists as pc', 'scg.checklist_id', 'pc.id')
+        .where('scg.template_id', templateId)
+        .orderBy('scg.generation_date', 'desc')
+        .limit(limit);
+
+      return history;
+    } catch (error) {
+      logger.error('Error fetching schedule generation history:', error);
       throw error;
     }
   }

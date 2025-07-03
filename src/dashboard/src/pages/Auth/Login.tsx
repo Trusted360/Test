@@ -155,7 +155,7 @@ const Login: React.FC = () => {
         >
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
             <img 
-              src="/assets/logos/trusted360-logo.svg" 
+              src="/logo2.png" 
               alt="Trusted 360" 
               style={{ height: '60px', width: 'auto' }}
             />

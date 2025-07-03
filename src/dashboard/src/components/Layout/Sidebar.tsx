@@ -9,7 +9,8 @@ import {
   ListItemText, 
   Divider, 
   Toolbar,
-  useTheme
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -19,80 +20,78 @@ import {
   Business as BusinessIcon,
   Assignment as ChecklistIcon,
   Videocam as VideoIcon,
-  Assessment as ReportsIcon
+  ManageAccounts as PropertyManagerIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   open: boolean;
+  onClose?: () => void;
 }
 
 const drawerWidth = 240;
 
-const Sidebar: React.FC<SidebarProps> = ({ open }) => {
+const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Enhanced admin access check with better debugging
+  // Admin access check - check both new roles system and old admin_level for backwards compatibility
   const hasAdminAccess = React.useMemo(() => {
-    const adminLevel = user?.admin_level;
-    const hasAccess = adminLevel && adminLevel !== 'none';
-    
-    // Enhanced debug logging
-    console.log('=== SIDEBAR DEBUG ===');
-    console.log('Full user object:', user);
-    console.log('user?.admin_level:', adminLevel);
-    console.log('typeof user?.admin_level:', typeof adminLevel);
-    console.log('adminLevel !== "none":', adminLevel !== 'none');
-    console.log('hasAccess result:', hasAccess);
-    console.log('localStorage user:', localStorage.getItem('user'));
-    
-    // Try to parse localStorage directly as fallback
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        console.log('Parsed localStorage user:', parsedUser);
-        console.log('Parsed user admin_level:', parsedUser.admin_level);
-      }
-    } catch (e) {
-      console.log('Error parsing localStorage user:', e);
+    // Check new roles system first
+    if (user?.roles && Array.isArray(user.roles)) {
+      return user.roles.includes('admin') || user.roles.includes('super_admin');
     }
     
-    console.log('==================');
-    
-    return hasAccess;
-  }, [user?.admin_level]);
+    // Fallback to old admin_level system
+    const adminLevel = user?.admin_level;
+    return adminLevel && adminLevel !== 'none';
+  }, [user?.admin_level, user?.roles]);
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Properties', icon: <BusinessIcon />, path: '/properties' },
     { text: 'Checklists', icon: <ChecklistIcon />, path: '/checklists' },
     { text: 'Video Analysis', icon: <VideoIcon />, path: '/video' },
-    { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
+    { text: 'Property Audits', icon: <PropertyManagerIcon />, path: '/property-manager' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
-    ...(hasAdminAccess ? [{ text: 'Admin Portal', icon: <AdminIcon />, path: '/admin' }] : []),
+    ...(hasAdminAccess ? [
+      { text: 'Users', icon: <PeopleIcon />, path: '/users' },
+      { text: 'Admin Portal', icon: <AdminIcon />, path: '/admin' }
+    ] : []),
   ];
 
-  // Additional debug logging for menu items
-  console.log('Menu items:', menuItems.map(item => item.text));
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    // Close drawer on mobile after navigation
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
   return (
     <Drawer
-      variant="permanent"
+      variant={isMobile ? "temporary" : "permanent"}
+      open={open}
+      onClose={onClose}
+      ModalProps={{
+        keepMounted: true, // Better open performance on mobile
+      }}
       sx={{
-        width: open ? drawerWidth : 64,
+        width: isMobile ? drawerWidth : (open ? drawerWidth : 64),
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: open ? drawerWidth : 64,
+          width: isMobile ? drawerWidth : (open ? drawerWidth : 64),
           boxSizing: 'border-box',
           borderRight: `1px solid ${theme.palette.divider}`,
           transition: theme.transitions.create('width', {
@@ -105,24 +104,24 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       }}
     >
       <Toolbar />
-      <Box sx={{ overflow: 'auto' }}>
+      <Box sx={{ overflow: 'hidden' }}>
         <List>
           {menuItems.map((item) => (
             <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
               <ListItemButton
                 sx={{
                   minHeight: 48,
-                  justifyContent: open ? 'initial' : 'center',
+                  justifyContent: (isMobile || open) ? 'initial' : 'center',
                   px: 2.5,
                   backgroundColor: location.pathname === item.path ? 
                     theme.palette.action.selected : 'transparent',
                 }}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigation(item.path)}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 0,
-                    mr: open ? 3 : 'auto',
+                    mr: (isMobile || open) ? 3 : 'auto',
                     justifyContent: 'center',
                   }}
                 >
@@ -130,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 </ListItemIcon>
                 <ListItemText 
                   primary={item.text} 
-                  sx={{ opacity: open ? 1 : 0 }} 
+                  sx={{ opacity: (isMobile || open) ? 1 : 0 }} 
                 />
               </ListItemButton>
             </ListItem>
@@ -142,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             <ListItemButton
               sx={{
                 minHeight: 48,
-                justifyContent: open ? 'initial' : 'center',
+                justifyContent: (isMobile || open) ? 'initial' : 'center',
                 px: 2.5,
               }}
               onClick={handleLogout}
@@ -150,7 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               <ListItemIcon
                 sx={{
                   minWidth: 0,
-                  mr: open ? 3 : 'auto',
+                  mr: (isMobile || open) ? 3 : 'auto',
                   justifyContent: 'center',
                 }}
               >
@@ -158,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               </ListItemIcon>
               <ListItemText 
                 primary="Logout" 
-                sx={{ opacity: open ? 1 : 0 }} 
+                sx={{ opacity: (isMobile || open) ? 1 : 0 }} 
               />
             </ListItemButton>
           </ListItem>

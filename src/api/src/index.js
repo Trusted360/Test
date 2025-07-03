@@ -21,6 +21,7 @@ const ChecklistService = require('./services/checklist.service');
 const VideoAnalysisService = require('./services/videoAnalysis.service');
 const ChatService = require('./services/chat.service');
 const AuditService = require('./services/audit.service');
+const SchedulerService = require('./services/scheduler.service');
 const emailService = require('./services/email.service');
 const auditMiddleware = require('./middleware/auditMiddleware');
 
@@ -102,6 +103,9 @@ function initializeServices(db) {
   // Initialize ChatService with database connection
   const chatServiceInstance = new ChatService(db);
   
+  // Initialize SchedulerService with database connection and checklist service
+  const schedulerServiceInstance = new SchedulerService(db, checklistServiceInstance);
+  
   logger.info('Services initialized');
   
   const services = {
@@ -111,6 +115,7 @@ function initializeServices(db) {
     VideoAnalysisService: videoAnalysisServiceInstance,
     ChatService: chatServiceInstance,
     AuditService: auditServiceInstance,
+    SchedulerService: schedulerServiceInstance,
     // Make other models/services available if needed by other routes
     userModel,
     sessionModel,
@@ -159,6 +164,10 @@ async function startServer() {
     logger.info('Redis connection established');
 
     const services = initializeServices(db);
+    
+    // Start the scheduler service
+    services.SchedulerService.start(60); // Run every hour
+    logger.info('Checklist scheduler started');
     
     // Apply audit middleware to capture request context
     app.use('/api', auditMiddleware(services.AuditService));

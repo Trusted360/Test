@@ -237,6 +237,20 @@ class AuthService {
       const userWithoutPassword = { ...user };
       delete userWithoutPassword.password;
       
+      // Fetch user roles from new roles system
+      try {
+        const db = this.userModel.db;
+        const userRoles = await db('user_roles')
+          .join('roles', 'user_roles.role_id', 'roles.id')
+          .where('user_roles.user_id', user.id)
+          .select('roles.name');
+        
+        userWithoutPassword.roles = userRoles.map(r => r.name);
+      } catch (error) {
+        logger.warn('Failed to fetch user roles:', error);
+        userWithoutPassword.roles = [];
+      }
+      
       return { 
         user: userWithoutPassword, 
         token: session.token,

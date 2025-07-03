@@ -189,24 +189,64 @@ class PropertyService {
         throw new Error('Property not found');
       }
 
-      // Check for dependent records
-      const checklistCount = await this.knex('property_checklists')
-        .where('property_id', id)
-        .count('id as count')
-        .first();
+      // Check for dependent records in all tables
+      // Note: Excluding audit_logs and operational_metrics as they are system-generated
+      // and should not prevent property deletion in a demo environment
+      const dependentTables = [
+        { table: 'property_checklists', name: 'checklists' },
+        { table: 'camera_feeds', name: 'camera feeds' },
+        { table: 'service_tickets', name: 'service tickets' },
+        { table: 'action_items', name: 'action items' },
+        { table: 'property_inspection_summary', name: 'inspection summaries' },
+        { table: 'recurring_issues', name: 'recurring issues' },
+        { table: 'property_manager_metrics', name: 'property manager metrics' },
+        { table: 'scheduled_checklist_generations', name: 'scheduled checklists' }
+        // Excluded: audit_logs, operational_metrics (system-generated records)
+      ];
 
-      const cameraCount = await this.knex('camera_feeds')
-        .where('property_id', id)
-        .count('id as count')
-        .first();
-
-      if (parseInt(checklistCount.count) > 0 || parseInt(cameraCount.count) > 0) {
-        throw new Error('Cannot delete property with associated checklists or cameras');
+      const dependencies = [];
+      
+      for (const { table, name } of dependentTables) {
+        try {
+          const count = await this.knex(table)
+            .where('property_id', id)
+            .count('* as count')
+            .first();
+          
+          if (parseInt(count.count) > 0) {
+            dependencies.push(`${count.count} ${name}`);
+            console.log(`Property ${id} has ${count.count} ${name}`);
+          }
+        } catch (error) {
+          console.log(`Warning: Could not check ${table}:`, error.message);
+        }
       }
 
-      await this.knex('properties')
+      if (dependencies.length > 0) {
+        throw new Error(`Cannot delete property: It has associated records (${dependencies.join(', ')}). Please remove them first.`);
+      }
+
+      // Delete system-generated records first (these should cascade automatically)
+      // But we'll do it explicitly to ensure clean deletion
+      await this.knex('audit_logs')
+        .where('property_id', id)
+        .del();
+        
+      await this.knex('operational_metrics')
+        .where('property_id', id)
+        .del();
+        
+      // Delete any records in tables with CASCADE DELETE
+      await this.knex('property_notification_targets')
+        .where('property_id', id)
+        .del();
+      
+      // Now delete the property
+      const deleteResult = await this.knex('properties')
         .where({ id, tenant_id: tenantId })
         .del();
+      
+      console.log('Delete result:', deleteResult, 'for property:', id, 'tenant:', tenantId);
 
       // Log audit event
       if (this.auditService) {
@@ -227,6 +267,7 @@ class PropertyService {
 
       return true;
     } catch (error) {
+      console.error('Error deleting property:', error);
       throw new Error(`Failed to delete property: ${error.message}`);
     }
   }

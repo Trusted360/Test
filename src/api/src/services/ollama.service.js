@@ -19,8 +19,8 @@ const MODEL_CONFIGS = {
     primary: process.env.OLLAMA_MODEL_PRIMARY || 'llama3.2:3b-instruct-q4_K_M',
     fallback: process.env.OLLAMA_MODEL_FALLBACK || 'llama3.2:3b-instruct-q4_K_M',
     options: {
-      temperature: 0.7,
-      top_p: 0.9,
+      temperature: 0.3,  // Lower temperature for more consistent, factual responses
+      top_p: 0.8,
       num_ctx: parseInt(process.env.CHAT_CONTEXT_WINDOW) || 8192,
       num_gpu: 999,
       num_thread: 4,
@@ -32,8 +32,8 @@ const MODEL_CONFIGS = {
     primary: 'llama3.2:3b-instruct-q4_K_M',
     fallback: 'gemma2:2b-instruct-q4_K_M',
     options: {
-      temperature: 0.7,
-      top_p: 0.9,
+      temperature: 0.3,  // Lower temperature for more consistent, factual responses
+      top_p: 0.8,
       num_ctx: 8192,
       num_gpu: 99,
       num_thread: 4
@@ -784,30 +784,38 @@ async function generateTrusted360Response(prompt, context = {}, options = {}) {
  * Build Trusted360-specific prompt
  */
 function buildTrusted360Prompt(userMessage, context) {
-  let prompt = `You are an AI assistant for Trusted360, a security audit and property management platform for self-storage facilities.
+  let prompt = `You are a concise AI assistant for Trusted360, a self-storage security platform.
 
-SYSTEM CAPABILITIES:
-- Navigate to different pages in the application
-- Create alerts and checklists
-- Access property information and security data
-- Analyze video alerts and maintenance issues
-- Generate reports and summaries
+CRITICAL INSTRUCTIONS:
+- Be EXTREMELY concise - answer in 1-2 sentences when possible
+- ONLY reference data that actually exists in the context provided
+- If you don't have specific information, say so briefly
+- Avoid speculation or generating example data
+- Focus on facts from the database
 
 CURRENT CONTEXT:
 `;
 
-  // Add all properties context
+  // Add all properties context with exact data
   if (context.properties && context.properties.length > 0) {
-    prompt += `CONFIGURED PROPERTIES (${context.properties.length}):
-${context.properties.map(p => `- ${p.name}: ${p.address} (${p.status})`).join('\n')}
+    prompt += `EXACT PROPERTIES IN SYSTEM (${context.properties.length} total):
+${context.properties.map(p => `- "${p.name}" at ${p.address} (Status: ${p.status})`).join('\n')}
+
+`;
+  } else {
+    prompt += `NO PROPERTIES CONFIGURED IN SYSTEM YET.
 
 `;
   }
 
-  // Add all templates context
+  // Add all templates context with exact names
   if (context.templates && context.templates.length > 0) {
-    prompt += `AVAILABLE TEMPLATES (${context.templates.length}):
-${context.templates.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+    prompt += `EXACT CHECKLIST TEMPLATES IN SYSTEM (${context.templates.length} total):
+${context.templates.map(t => `- "${t.name}"${t.description ? `: ${t.description}` : ''}`).join('\n')}
+
+`;
+  } else {
+    prompt += `NO CHECKLIST TEMPLATES CONFIGURED IN SYSTEM YET.
 
 `;
   }
@@ -822,22 +830,24 @@ Status: ${context.property.status}
 `;
   }
 
-  // Add recent activity context
+  // Add recent activity context with specific data
   if (context.checklists && context.checklists.length > 0) {
-    prompt += `RECENT CHECKLISTS (${context.checklists.length}):
+    prompt += `RECENT CHECKLISTS (last ${context.checklists.length}):
 ${context.checklists.map(c => {
-      const propertyInfo = c.property_name ? ` at ${c.property_name}` : '';
-      return `- ${c.template_name}: ${c.status}${propertyInfo}`;
+      const propertyInfo = c.property_name ? ` at "${c.property_name}"` : '';
+      const date = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
+      return `- ${c.template_name} (${c.status})${propertyInfo} - ${date}`;
     }).join('\n')}
 
 `;
   }
 
   if (context.alerts && context.alerts.length > 0) {
-    prompt += `RECENT ALERTS (${context.alerts.length}):
+    prompt += `RECENT VIDEO ALERTS (last ${context.alerts.length}):
 ${context.alerts.map(a => {
-      const propertyInfo = a.property_name ? ` at ${a.property_name}` : '';
-      return `- ${a.alert_type_name}: ${a.status}${propertyInfo}`;
+      const propertyInfo = a.property_name ? ` at "${a.property_name}"` : '';
+      const severity = a.severity || 'unknown';
+      return `- ${a.alert_type_name} (${severity}, ${a.status})${propertyInfo}`;
     }).join('\n')}
 
 `;
@@ -854,24 +864,17 @@ ${context.conversation_history.map(msg => {
 `;
   }
 
-  prompt += `RESPONSE GUIDELINES:
-- Be professional and concise
-- Reference specific data when available (properties, templates, checklists, alerts)
-- When asked about properties, list the actual configured properties
-- When asked about templates, list the actual available templates
-- Suggest actionable next steps
-- If you can perform an action, indicate it clearly
-- Use the format [ACTION: action_type] for executable actions
-
-AVAILABLE ACTIONS:
-- [ACTION: navigate] - Navigate to a specific page
-- [ACTION: create_alert] - Create a new alert
-- [ACTION: create_checklist] - Create a new checklist
-- [ACTION: generate_report] - Generate a report
+  prompt += `RESPONSE RULES:
+- MAXIMUM 1-2 sentences. Be extremely brief.
+- If no data exists, just say "No [thing] configured yet."
+- For counts, just say the number: "0 properties" or "5 templates"
+- Never explain why there's no data or what could be done
+- Never add filler phrases like "I don't have any specific information to share"
+- Just state facts briefly
 
 USER MESSAGE: ${userMessage}
 
-RESPONSE:`;
+ULTRA-BRIEF RESPONSE:`;
 
   return prompt;
 }

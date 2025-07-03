@@ -173,7 +173,7 @@ const checkTenant = (req, res, next) => {
 
 /**
  * Role-based authorization middleware
- * Checks if user has required role
+ * Checks if user has required role(s) - supports both single role and multiple roles
  */
 function authorize(roles = []) {
   // Convert string to array if single role
@@ -181,9 +181,9 @@ function authorize(roles = []) {
     roles = [roles];
   }
   
-  return (req, res, next) => {
-    // Check if user exists and has a role
-    if (!req.user || !req.user.role) {
+  return async (req, res, next) => {
+    // Check if user exists
+    if (!req.user) {
       return res.status(403).json({
         success: false,
         error: {
@@ -193,20 +193,70 @@ function authorize(roles = []) {
       });
     }
     
-    // Check if user's role is in the allowed roles
-    if (roles.length > 0 && !roles.includes(req.user.role)) {
-      logger.warn(`Authorization failed: User ${req.user.id} with role ${req.user.role} attempted to access resource requiring roles: ${roles.join(', ')}`);
+    // For backwards compatibility, check single role first
+    if (req.user.role) {
+      if (roles.length > 0 && !roles.includes(req.user.role)) {
+        logger.warn(`Authorization failed: User ${req.user.id} with role ${req.user.role} attempted to access resource requiring roles: ${roles.join(', ')}`);
+        
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Insufficient permissions',
+            code: 'INSUFFICIENT_PERMISSIONS'
+          }
+        });
+      }
+      return next();
+    }
+    
+    // Check new roles system
+    try {
+      const knex = req.app.locals.knex;
+      if (!knex) {
+        // Fallback if no database connection
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Database connection not available',
+            code: 'DATABASE_ERROR'
+          }
+        });
+      }
       
-      return res.status(403).json({
+      const userRoles = await knex('user_roles')
+        .join('roles', 'user_roles.role_id', 'roles.id')
+        .where('user_roles.user_id', req.user.id)
+        .select('roles.name');
+      
+      const userRoleNames = userRoles.map(r => r.name);
+      
+      // Check if user has any of the required roles
+      if (roles.length > 0 && !roles.some(role => userRoleNames.includes(role))) {
+        logger.warn(`Authorization failed: User ${req.user.id} with roles [${userRoleNames.join(', ')}] attempted to access resource requiring roles: ${roles.join(', ')}`);
+        
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Insufficient permissions',
+            code: 'INSUFFICIENT_PERMISSIONS'
+          }
+        });
+      }
+      
+      // Add user roles to request for future use
+      req.user.roles = userRoleNames;
+      
+      next();
+    } catch (error) {
+      logger.error('Authorization error:', error);
+      return res.status(500).json({
         success: false,
         error: {
-          message: 'Insufficient permissions',
-          code: 'INSUFFICIENT_PERMISSIONS'
+          message: 'Authorization error',
+          code: 'AUTH_ERROR'
         }
       });
     }
-    
-    next();
   };
 }
 

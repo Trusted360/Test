@@ -8,7 +8,9 @@ import {
   Box, 
   Menu, 
   MenuItem, 
-  Tooltip 
+  Tooltip,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { 
   Menu as MenuIcon, 
@@ -25,6 +27,8 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -46,18 +50,12 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
       position="fixed" 
       sx={{ 
         zIndex: (theme) => theme.zIndex.drawer + 1,
+        width: isMobile ? '100%' : (open ? `calc(100% - 240px)` : `calc(100% - 64px)`),
+        marginLeft: isMobile ? 0 : (open ? '240px' : '64px'),
         transition: (theme) => theme.transitions.create(['width', 'margin'], {
           easing: theme.transitions.easing.sharp,
-          duration: theme.transitions.duration.leavingScreen,
+          duration: theme.transitions.duration.enteringScreen,
         }),
-        ...(open && {
-          width: `calc(100% - 240px)`,
-          marginLeft: '240px',
-          transition: (theme) => theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-        })
       }}
     >
       <Toolbar>
@@ -72,9 +70,12 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
         </IconButton>
         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
           <img 
-            src="/assets/logos/trusted360-logo-small.svg" 
+            src="/logo.png" 
             alt="Trusted 360" 
-            style={{ height: '32px', width: 'auto' }}
+            style={{ 
+              height: isMobile ? '28px' : '32px', 
+              width: 'auto' 
+            }}
           />
         </Box>
         

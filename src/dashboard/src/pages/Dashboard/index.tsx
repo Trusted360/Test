@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip, Alert as MuiAlert } from '@mui/material';
+import { Typography, Box, Grid, Paper, Stack, Button, CircularProgress, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
   Business as BusinessIcon, 
   Add as AddIcon, 
   Assignment as AssignmentIcon,
-  Warning as WarningIcon,
-  Videocam as VideocamIcon,
-  Security as SecurityIcon
+  Videocam as VideocamIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +13,7 @@ import { PropertyWithStats, propertyService } from '../../services/property.serv
 import { checklistService } from '../../services/checklist.service';
 import { videoService, Alert as VideoAlert } from '../../services/video.service';
 import { Checklist } from '../../types/checklist.types';
+import VideoAlertIcon from '../../components/VideoAlertIcon';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -31,15 +30,12 @@ const Dashboard: React.FC = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [recentChecklists, setRecentChecklists] = useState<Checklist[]>([]);
   const [checklistsLoading, setChecklistsLoading] = useState(true);
-  const [activeAlerts, setActiveAlerts] = useState<VideoAlert[]>([]);
-  const [alertsLoading, setAlertsLoading] = useState(true);
   const [videoEvents, setVideoEvents] = useState<VideoAlert[]>([]);
   const [videoEventsLoading, setVideoEventsLoading] = useState(true);
 
   useEffect(() => {
     loadProperties();
     loadRecentChecklists();
-    loadActiveAlerts();
     loadVideoEvents();
   }, []);
 
@@ -68,20 +64,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadActiveAlerts = async () => {
-    try {
-      setAlertsLoading(true);
-      const response = await videoService.getAlerts({ 
-        status: 'active', 
-        limit: 5 
-      });
-      setActiveAlerts(response.data);
-    } catch (error) {
-      console.error('Error loading active alerts:', error);
-    } finally {
-      setAlertsLoading(false);
-    }
-  };
+
 
   const loadVideoEvents = async () => {
     try {
@@ -119,6 +102,7 @@ const Dashboard: React.FC = () => {
     const createdDate = new Date(checklist.created_at).toLocaleDateString();
     return `Checklist for ${propertyName} (${createdDate})`;
   };
+
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -270,61 +254,7 @@ const Dashboard: React.FC = () => {
               )}
             </StyledPaper>
           </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <StyledPaper elevation={2}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" display="flex" alignItems="center" gap={1}>
-                  <WarningIcon />
-                  Active Alerts
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => navigate('/video')}
-                >
-                  View All
-                </Button>
-              </Box>
-              
-              {alertsLoading ? (
-                <Box display="flex" justifyContent="center" py={2}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : activeAlerts.length > 0 ? (
-                <Stack spacing={1}>
-                  {activeAlerts.map((alert) => (
-                    <MuiAlert 
-                      key={alert.id} 
-                      severity={getSeverityColor(alert.severity)}
-                      variant="outlined"
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/video/alerts/${alert.id}`)}
-                    >
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium">
-                          {alert.alert_type_name}
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {alert.camera_name} • {alert.property_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(alert.created_at).toLocaleString()}
-                        </Typography>
-                      </Box>
-                    </MuiAlert>
-                  ))}
-                </Stack>
-              ) : (
-                <Box textAlign="center" py={3}>
-                  <SecurityIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    No active alerts. All monitored systems are operating normally.
-                  </Typography>
-                </Box>
-              )}
-            </StyledPaper>
-          </Grid>
+
           
           <Grid item xs={12} md={6}>
             <StyledPaper elevation={2}>
@@ -355,8 +285,12 @@ const Dashboard: React.FC = () => {
                       sx={{ p: 1.5, cursor: 'pointer' }}
                       onClick={() => navigate(`/video/alerts/${event.id}`)}
                     >
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box>
+                      <Box display="flex" alignItems="center" gap={2}>
+                        <VideoAlertIcon 
+                          eventType={event.alert_type_id?.toString() || event.alert_type_name.toLowerCase().replace(/\s+/g, '_')}
+                          size={32}
+                        />
+                        <Box flex={1}>
                           <Typography variant="subtitle2" fontWeight="medium">
                             {event.alert_type_name}
                           </Typography>
@@ -395,17 +329,6 @@ const Dashboard: React.FC = () => {
                   </Typography>
                 </Box>
               )}
-            </StyledPaper>
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <StyledPaper elevation={2}>
-              <Typography variant="h6" gutterBottom>
-                AI Assistant
-              </Typography>
-              <Typography variant="body2">
-                Get intelligent assistance with property management and security audits.
-              </Typography>
             </StyledPaper>
           </Grid>
         </Grid>

@@ -38,7 +38,10 @@ import {
   ListItemText,
   ListItemIcon,
   Checkbox,
-  Divider
+  Divider,
+  Collapse,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -136,7 +139,17 @@ const Checklists: React.FC = () => {
     name: '',
     description: '',
     category: '',
-    items: []
+    items: [],
+    is_scheduled: false,
+    schedule_frequency: 'monthly',
+    schedule_interval: 1,
+    schedule_days_of_week: [],
+    schedule_day_of_month: 1,
+    schedule_time: '09:00',
+    schedule_start_date: '',
+    schedule_end_date: '',
+    schedule_advance_days: 0,
+    auto_assign: false
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -228,7 +241,15 @@ const Checklists: React.FC = () => {
   const handleCreateTemplate = async () => {
     try {
       setFormLoading(true);
-      await checklistService.createTemplate(templateFormData);
+      // Clean up the data - convert empty strings to null for date fields
+      const cleanedData = {
+        ...templateFormData,
+        schedule_start_date: templateFormData.schedule_start_date || null,
+        schedule_end_date: templateFormData.schedule_end_date || null,
+        schedule_days_of_week: templateFormData.is_scheduled ? templateFormData.schedule_days_of_week : [],
+        schedule_time: templateFormData.is_scheduled ? templateFormData.schedule_time : null
+      };
+      await checklistService.createTemplate(cleanedData);
       setCreateTemplateDialogOpen(false);
       resetTemplateForm();
       loadTemplates();
@@ -277,7 +298,17 @@ const Checklists: React.FC = () => {
       name: '',
       description: '',
       category: '',
-      items: []
+      items: [],
+      is_scheduled: false,
+      schedule_frequency: 'monthly',
+      schedule_interval: 1,
+      schedule_days_of_week: [],
+      schedule_day_of_month: 1,
+      schedule_time: '09:00',
+      schedule_start_date: null,
+      schedule_end_date: null,
+      schedule_advance_days: 0,
+      auto_assign: false
     });
   };
 
@@ -385,7 +416,17 @@ const Checklists: React.FC = () => {
         name: fullTemplate.name,
         description: fullTemplate.description || '',
         category: fullTemplate.category,
-        items
+        items,
+        is_scheduled: fullTemplate.is_scheduled || false,
+        schedule_frequency: fullTemplate.schedule_frequency || 'monthly',
+        schedule_interval: fullTemplate.schedule_interval || 1,
+        schedule_days_of_week: fullTemplate.schedule_days_of_week || [],
+        schedule_day_of_month: fullTemplate.schedule_day_of_month || 1,
+        schedule_time: fullTemplate.schedule_time || '09:00',
+        schedule_start_date: fullTemplate.schedule_start_date || '',
+        schedule_end_date: fullTemplate.schedule_end_date || '',
+        schedule_advance_days: fullTemplate.schedule_advance_days || 0,
+        auto_assign: fullTemplate.auto_assign || false
       });
       setEditTemplateDialogOpen(true);
     } catch (error) {
@@ -797,90 +838,194 @@ const Checklists: React.FC = () => {
                 </Grid>
               </Grid>
 
-              {/* Templates Grid */}
-              <Grid container spacing={3}>
-                {templates.map((template) => (
-                  <Grid item xs={12} md={6} lg={4} key={template.id}>
-                    <Card>
-                      <CardContent>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                          <Box flex={1}>
-                            <Typography variant="h6" gutterBottom>
-                              {template.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {template.description}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            label={checklistService.formatCategory(template.category)}
-                            size="small"
-                            color="primary"
-                          />
-                        </Box>
-                        
-                        <Stack spacing={1} mb={2}>
-                          <Typography variant="caption" color="text.secondary">
-                            Items: {template.items?.length || 0}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Created: {formatDate(template.created_at)}
-                          </Typography>
-                        </Stack>
+              {/* Separate video templates from other templates */}
+              {(() => {
+                const videoTemplates = templates.filter(t => t.category === 'video_event');
+                const otherTemplates = templates.filter(t => t.category !== 'video_event');
+                
+                return (
+                  <>
+                    {/* Video Templates Section */}
+                    {videoTemplates.length > 0 && (
+                      <>
+                        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                          Video Event Templates
+                        </Typography>
+                        <Grid container spacing={3} sx={{ mb: 4 }}>
+                          {videoTemplates.map((template) => (
+                            <Grid item xs={12} md={6} lg={4} key={template.id}>
+                              <Card sx={{ backgroundColor: 'rgba(25, 118, 210, 0.04)' }}>
+                                <CardContent>
+                                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                    <Box flex={1}>
+                                      <Typography variant="h6" gutterBottom>
+                                        {template.name}
+                                      </Typography>
+                                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                                        {template.description}
+                                      </Typography>
+                                    </Box>
+                                    <Chip
+                                      label={checklistService.formatCategory(template.category)}
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  </Box>
+                                  
+                                  <Stack spacing={1} mb={2}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Items: {template.items?.length || 0}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Created: {formatDate(template.created_at)}
+                                    </Typography>
+                                  </Stack>
 
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Tooltip title="View Template">
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleViewTemplate(template)}
-                            >
-                              <ViewIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit Template">
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleEditTemplate(template)}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete Template">
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleDeleteTemplateClick(template)}
-                              color="error"
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Create Checklist">
-                            <IconButton 
-                              size="small" 
-                              color="primary"
-                              onClick={() => {
-                                setChecklistFormData((prev: CreateChecklistData) => ({ ...prev, template_id: template.id }));
-                                setCreateChecklistDialogOpen(true);
-                              }}
-                            >
-                              <AddIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-                {templates.length === 0 && !templatesLoading && (
-                  <Grid item xs={12}>
-                    <Paper sx={{ p: 4, textAlign: 'center' }}>
-                      <Typography variant="body1" color="text.secondary">
-                        No templates found. Create your first template to get started.
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                )}
-              </Grid>
+                                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                    <Tooltip title="View Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleViewTemplate(template)}
+                                      >
+                                        <ViewIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleEditTemplate(template)}
+                                      >
+                                        <EditIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleDeleteTemplateClick(template)}
+                                        color="error"
+                                      >
+                                        <DeleteIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Create Checklist">
+                                      <IconButton 
+                                        size="small" 
+                                        color="primary"
+                                        onClick={() => {
+                                          setChecklistFormData((prev: CreateChecklistData) => ({ ...prev, template_id: template.id }));
+                                          setCreateChecklistDialogOpen(true);
+                                        }}
+                                      >
+                                        <AddIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </>
+                    )}
+
+                    {/* Other Templates Section */}
+                    {otherTemplates.length > 0 && (
+                      <>
+                        <Typography variant="h6" gutterBottom>
+                          General Templates
+                        </Typography>
+                        <Grid container spacing={3}>
+                          {otherTemplates.map((template) => (
+                            <Grid item xs={12} md={6} lg={4} key={template.id}>
+                              <Card>
+                                <CardContent>
+                                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                    <Box flex={1}>
+                                      <Typography variant="h6" gutterBottom>
+                                        {template.name}
+                                      </Typography>
+                                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                                        {template.description}
+                                      </Typography>
+                                    </Box>
+                                    <Chip
+                                      label={checklistService.formatCategory(template.category)}
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  </Box>
+                                  
+                                  <Stack spacing={1} mb={2}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Items: {template.items?.length || 0}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Created: {formatDate(template.created_at)}
+                                    </Typography>
+                                  </Stack>
+
+                                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                    <Tooltip title="View Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleViewTemplate(template)}
+                                      >
+                                        <ViewIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleEditTemplate(template)}
+                                      >
+                                        <EditIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete Template">
+                                      <IconButton 
+                                        size="small"
+                                        onClick={() => handleDeleteTemplateClick(template)}
+                                        color="error"
+                                      >
+                                        <DeleteIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Create Checklist">
+                                      <IconButton 
+                                        size="small" 
+                                        color="primary"
+                                        onClick={() => {
+                                          setChecklistFormData((prev: CreateChecklistData) => ({ ...prev, template_id: template.id }));
+                                          setCreateChecklistDialogOpen(true);
+                                        }}
+                                      >
+                                        <AddIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </>
+                    )}
+
+                    {/* Empty state */}
+                    {templates.length === 0 && !templatesLoading && (
+                      <Grid container>
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 4, textAlign: 'center' }}>
+                            <Typography variant="body1" color="text.secondary">
+                              No templates found. Create your first template to get started.
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    )}
+                  </>
+                );
+              })()}
             </Stack>
           </TabPanel>
         </Paper>
@@ -988,6 +1133,163 @@ const Checklists: React.FC = () => {
                   ))}
                 </Select>
               </FormControl>
+
+              <Divider />
+              
+              {/* Scheduling Section */}
+              <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle1">
+                    Template Scheduling
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={templateFormData.is_scheduled}
+                        onChange={(e) => setTemplateFormData(prev => ({ ...prev, is_scheduled: e.target.checked }))}
+                        color="primary"
+                      />
+                    }
+                    label="Enable automatic checklist generation"
+                  />
+                </Box>
+                
+                <Stack spacing={2}>
+                  {templateFormData.is_scheduled && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      When scheduling is enabled, the system will automatically create new checklists based on your configured schedule.
+                    </Alert>
+                  )}
+                  
+                  {templateFormData.is_scheduled && (
+                    <Collapse in={templateFormData.is_scheduled}>
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Frequency</InputLabel>
+                              <Select
+                                value={templateFormData.schedule_frequency}
+                                onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_frequency: e.target.value as any }))}
+                                label="Frequency"
+                              >
+                                <MenuItem value="daily">Daily</MenuItem>
+                                <MenuItem value="weekly">Weekly</MenuItem>
+                                <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                                <MenuItem value="monthly">Monthly</MenuItem>
+                                <MenuItem value="quarterly">Quarterly</MenuItem>
+                                <MenuItem value="yearly">Yearly</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Interval"
+                              type="number"
+                              value={templateFormData.schedule_interval}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_interval: parseInt(e.target.value) || 1 }))}
+                              inputProps={{ min: 1, max: 12 }}
+                              helperText="Every X frequency periods"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        {(templateFormData.schedule_frequency === 'weekly' || templateFormData.schedule_frequency === 'bi-weekly') && (
+                          <FormControl fullWidth>
+                            <InputLabel>Days of Week</InputLabel>
+                            <Select
+                              multiple
+                              value={templateFormData.schedule_days_of_week}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_days_of_week: e.target.value as number[] }))}
+                              label="Days of Week"
+                            >
+                              <MenuItem value={0}>Sunday</MenuItem>
+                              <MenuItem value={1}>Monday</MenuItem>
+                              <MenuItem value={2}>Tuesday</MenuItem>
+                              <MenuItem value={3}>Wednesday</MenuItem>
+                              <MenuItem value={4}>Thursday</MenuItem>
+                              <MenuItem value={5}>Friday</MenuItem>
+                              <MenuItem value={6}>Saturday</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                        
+                        {(templateFormData.schedule_frequency === 'monthly' || templateFormData.schedule_frequency === 'quarterly' || templateFormData.schedule_frequency === 'yearly') && (
+                          <TextField
+                            fullWidth
+                            label="Day of Month"
+                            type="number"
+                            value={templateFormData.schedule_day_of_month}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_day_of_month: parseInt(e.target.value) || 1 }))}
+                            inputProps={{ min: 1, max: 31 }}
+                            helperText="Day of the month to generate checklist"
+                          />
+                        )}
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Generation Time"
+                              type="time"
+                              value={templateFormData.schedule_time}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_time: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Advance Days"
+                              type="number"
+                              value={templateFormData.schedule_advance_days}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_advance_days: parseInt(e.target.value) || 0 }))}
+                              inputProps={{ min: 0, max: 30 }}
+                              helperText="Generate X days in advance"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Start Date"
+                              type="date"
+                              value={templateFormData.schedule_start_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_start_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="End Date (Optional)"
+                              type="date"
+                              value={templateFormData.schedule_end_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_end_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <FormControl fullWidth>
+                          <InputLabel>Auto-assign</InputLabel>
+                          <Select
+                            value={templateFormData.auto_assign ? 'yes' : 'no'}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, auto_assign: e.target.value === 'yes' }))}
+                            label="Auto-assign"
+                          >
+                            <MenuItem value="no">No - Leave Unassigned</MenuItem>
+                            <MenuItem value="yes">Yes - Auto-assign to Property Manager</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </Collapse>
+                  )}
+                </Stack>
+              </Box>
 
               <Divider />
               
@@ -1239,6 +1541,163 @@ const Checklists: React.FC = () => {
                   ))}
                 </Select>
               </FormControl>
+
+              <Divider />
+              
+              {/* Scheduling Section */}
+              <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="subtitle1">
+                    Template Scheduling
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={templateFormData.is_scheduled}
+                        onChange={(e) => setTemplateFormData(prev => ({ ...prev, is_scheduled: e.target.checked }))}
+                        color="primary"
+                      />
+                    }
+                    label="Enable automatic checklist generation"
+                  />
+                </Box>
+                
+                <Stack spacing={2}>
+                  {templateFormData.is_scheduled && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      When scheduling is enabled, the system will automatically create new checklists based on your configured schedule.
+                    </Alert>
+                  )}
+                  
+                  {templateFormData.is_scheduled && (
+                    <Collapse in={templateFormData.is_scheduled}>
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Frequency</InputLabel>
+                              <Select
+                                value={templateFormData.schedule_frequency}
+                                onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_frequency: e.target.value as any }))}
+                                label="Frequency"
+                              >
+                                <MenuItem value="daily">Daily</MenuItem>
+                                <MenuItem value="weekly">Weekly</MenuItem>
+                                <MenuItem value="bi-weekly">Bi-Weekly</MenuItem>
+                                <MenuItem value="monthly">Monthly</MenuItem>
+                                <MenuItem value="quarterly">Quarterly</MenuItem>
+                                <MenuItem value="yearly">Yearly</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Interval"
+                              type="number"
+                              value={templateFormData.schedule_interval}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_interval: parseInt(e.target.value) || 1 }))}
+                              inputProps={{ min: 1, max: 12 }}
+                              helperText="Every X frequency periods"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        {(templateFormData.schedule_frequency === 'weekly' || templateFormData.schedule_frequency === 'bi-weekly') && (
+                          <FormControl fullWidth>
+                            <InputLabel>Days of Week</InputLabel>
+                            <Select
+                              multiple
+                              value={templateFormData.schedule_days_of_week}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_days_of_week: e.target.value as number[] }))}
+                              label="Days of Week"
+                            >
+                              <MenuItem value={0}>Sunday</MenuItem>
+                              <MenuItem value={1}>Monday</MenuItem>
+                              <MenuItem value={2}>Tuesday</MenuItem>
+                              <MenuItem value={3}>Wednesday</MenuItem>
+                              <MenuItem value={4}>Thursday</MenuItem>
+                              <MenuItem value={5}>Friday</MenuItem>
+                              <MenuItem value={6}>Saturday</MenuItem>
+                            </Select>
+                          </FormControl>
+                        )}
+                        
+                        {(templateFormData.schedule_frequency === 'monthly' || templateFormData.schedule_frequency === 'quarterly' || templateFormData.schedule_frequency === 'yearly') && (
+                          <TextField
+                            fullWidth
+                            label="Day of Month"
+                            type="number"
+                            value={templateFormData.schedule_day_of_month}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_day_of_month: parseInt(e.target.value) || 1 }))}
+                            inputProps={{ min: 1, max: 31 }}
+                            helperText="Day of the month to generate checklist"
+                          />
+                        )}
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Generation Time"
+                              type="time"
+                              value={templateFormData.schedule_time}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_time: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Advance Days"
+                              type="number"
+                              value={templateFormData.schedule_advance_days}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_advance_days: parseInt(e.target.value) || 0 }))}
+                              inputProps={{ min: 0, max: 30 }}
+                              helperText="Generate X days in advance"
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Start Date"
+                              type="date"
+                              value={templateFormData.schedule_start_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_start_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="End Date (Optional)"
+                              type="date"
+                              value={templateFormData.schedule_end_date}
+                              onChange={(e) => setTemplateFormData(prev => ({ ...prev, schedule_end_date: e.target.value }))}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </Grid>
+                        </Grid>
+                        
+                        <FormControl fullWidth>
+                          <InputLabel>Auto-assign</InputLabel>
+                          <Select
+                            value={templateFormData.auto_assign ? 'yes' : 'no'}
+                            onChange={(e) => setTemplateFormData(prev => ({ ...prev, auto_assign: e.target.value === 'yes' }))}
+                            label="Auto-assign"
+                          >
+                            <MenuItem value="no">No - Leave Unassigned</MenuItem>
+                            <MenuItem value="yes">Yes - Auto-assign to Property Manager</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </Collapse>
+                  )}
+                </Stack>
+              </Box>
 
               <Divider />
               

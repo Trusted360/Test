@@ -191,10 +191,30 @@ module.exports = function(services) {
         message: 'Property deleted successfully'
       });
     } catch (error) {
-      const statusCode = error.message === 'Property not found' ? 404 : 400;
+      let statusCode = 400;
+      let errorMessage = error.message;
+      
+      if (error.message === 'Property not found') {
+        statusCode = 404;
+      } else if (error.message.includes('Cannot delete property:')) {
+        statusCode = 409; // Conflict status code for constraint violations
+        // Pass through the detailed error message from the service
+        errorMessage = error.message;
+      } else if (error.message.includes('Failed to delete property:')) {
+        // Extract the actual error message from the wrapper
+        const match = error.message.match(/Failed to delete property: (.+)/);
+        if (match) {
+          errorMessage = match[1];
+          // If the extracted message is about dependencies, use 409 status
+          if (errorMessage.includes('Cannot delete property:')) {
+            statusCode = 409;
+          }
+        }
+      }
+      
       res.status(statusCode).json({
         success: false,
-        error: error.message
+        error: errorMessage
       });
     }
   }));

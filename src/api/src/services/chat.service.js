@@ -299,7 +299,6 @@ class ChatService {
           ])
           .leftJoin('checklist_templates', 'property_checklists.template_id', 'checklist_templates.id')
           .where('property_checklists.property_id', conversation.property_id)
-          .where('property_checklists.tenant_id', tenantId)
           .orderBy('property_checklists.created_at', 'desc')
           .limit(5);
 
@@ -313,7 +312,6 @@ class ChatService {
           .leftJoin('camera_feeds', 'video_alerts.camera_id', 'camera_feeds.id')
           .leftJoin('alert_types', 'video_alerts.alert_type_id', 'alert_types.id')
           .where('camera_feeds.property_id', conversation.property_id)
-          .where('video_alerts.tenant_id', tenantId)
           .orderBy('video_alerts.created_at', 'desc')
           .limit(10);
       } else {
@@ -327,7 +325,6 @@ class ChatService {
           ])
           .leftJoin('checklist_templates', 'property_checklists.template_id', 'checklist_templates.id')
           .leftJoin('properties', 'property_checklists.property_id', 'properties.id')
-          .where('property_checklists.tenant_id', tenantId)
           .orderBy('property_checklists.created_at', 'desc')
           .limit(10);
 
@@ -341,7 +338,6 @@ class ChatService {
           .leftJoin('camera_feeds', 'video_alerts.camera_id', 'camera_feeds.id')
           .leftJoin('properties', 'camera_feeds.property_id', 'properties.id')
           .leftJoin('alert_types', 'video_alerts.alert_type_id', 'alert_types.id')
-          .where('video_alerts.tenant_id', tenantId)
           .orderBy('video_alerts.created_at', 'desc')
           .limit(15);
       }
@@ -413,13 +409,14 @@ class ChatService {
         conversation_history: recentMessages.reverse()
       };
 
-      // Use enhanced Ollama service
+      // Use enhanced Ollama service with stricter parameters
       const response = await ollamaService.generateTrusted360Response(
         userMessage,
         enhancedContext,
         {
-          temperature: 0.7,
-          max_tokens: 1024
+          temperature: 0.3,  // Lower for consistency
+          max_tokens: 256,   // Much lower to force conciseness
+          top_p: 0.8
         }
       );
 

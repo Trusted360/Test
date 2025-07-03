@@ -79,6 +79,19 @@ exports.up = function(knex) {
             table.boolean('is_active').defaultTo(true);
             table.integer('created_by').references('id').inTable('users');
             table.string('tenant_id', 50).notNullable().defaultTo('default');
+            
+            // Scheduling and recurring fields
+            table.boolean('is_scheduled').defaultTo(false);
+            table.string('schedule_frequency', 50); // daily, weekly, bi-weekly, monthly, quarterly, yearly
+            table.integer('schedule_interval').defaultTo(1); // For custom intervals (every X days/weeks/months)
+            table.json('schedule_days_of_week'); // [1,2,3] for Mon,Tue,Wed (for weekly schedules)
+            table.integer('schedule_day_of_month'); // Day of month (for monthly schedules)
+            table.time('schedule_time'); // Time of day to create checklist
+            table.date('schedule_start_date'); // When to start generating scheduled checklists
+            table.date('schedule_end_date'); // When to stop (null = indefinite)
+            table.integer('schedule_advance_days').defaultTo(0); // How many days before due date to create checklist
+            table.boolean('auto_assign').defaultTo(false); // Auto-assign to property managers
+            
             table.timestamps(true, true);
             
             // Indexes
@@ -87,6 +100,8 @@ exports.up = function(knex) {
             table.index(['is_active']);
             table.index(['created_by']);
             table.index(['tenant_id', 'is_active']);
+            table.index(['is_scheduled']);
+            table.index(['schedule_frequency']);
           });
         }
       });
@@ -250,6 +265,35 @@ exports.up = function(knex) {
           });
         }
       });
+    })
+    
+    // Scheduled checklist generations - track what's been auto-created
+    .then(() => {
+      return knex.schema.hasTable('scheduled_checklist_generations').then(exists => {
+        if (!exists) {
+          return knex.schema.createTable('scheduled_checklist_generations', (table) => {
+            table.increments('id').primary();
+            table.integer('template_id').notNullable().references('id').inTable('checklist_templates').onDelete('CASCADE');
+            table.integer('property_id').references('id').inTable('properties');
+            table.date('generation_date').notNullable(); // Date this checklist was scheduled to be generated
+            table.date('due_date').notNullable(); // Due date for the generated checklist
+            table.integer('checklist_id').references('id').inTable('property_checklists'); // Actual checklist created (null if not yet created)
+            table.string('status', 50).defaultTo('pending'); // pending, created, failed
+            table.text('error_message'); // Error details if creation failed
+            table.timestamp('created_at').defaultTo(knex.fn.now());
+            
+            // Indexes for efficient queries
+            table.index(['template_id']);
+            table.index(['property_id']);
+            table.index(['generation_date']);
+            table.index(['status']);
+            table.index(['template_id', 'property_id', 'generation_date']); // Unique constraint alternative
+            
+            // Prevent duplicate generation for same template/property/date
+            table.unique(['template_id', 'property_id', 'generation_date'], { indexName: 'scg_unique_template_property_date' });
+          });
+        }
+      });
     });
 };
 
@@ -259,6 +303,7 @@ exports.up = function(knex) {
  */
 exports.down = function(knex) {
   return knex.schema
+    .dropTableIfExists('scheduled_checklist_generations')
     .dropTableIfExists('checklist_comments')
     .dropTableIfExists('checklist_approvals')
     .dropTableIfExists('checklist_attachments')

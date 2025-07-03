@@ -18,6 +18,13 @@ const ChecklistDetail = lazy(() => import('@pages/Checklists/ChecklistDetail'));
 const VideoAnalysis = lazy(() => import('@pages/Video'));
 const Reports = lazy(() => import('@pages/Audit'));
 
+// Property Manager pages
+const PropertyManagerDashboard = lazy(() => import('@pages/PropertyManager/PropertyManagerDashboard'));
+const ActionItemsReport = lazy(() => import('@pages/PropertyManager/ActionItemsReport'));
+
+// User Management pages
+const Users = lazy(() => import('@pages/Users'));
+
 // Admin pages
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
 const SqlConsole = lazy(() => import('@pages/Admin/SqlConsole'));
@@ -173,6 +180,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <SchemaExplorer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/property-manager"
+            element={
+              <ProtectedRoute>
+                <PropertyManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/property-manager/reports/action-items"
+            element={
+              <ProtectedRoute>
+                <ActionItemsReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <Users />
               </ProtectedRoute>
             }
           />
