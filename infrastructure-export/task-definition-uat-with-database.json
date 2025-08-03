@@ -1,0 +1,104 @@
+{
+  "family": "trusted360-uat",
+  "executionRoleArn": "arn:aws:iam::119268833526:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "trusted360-api",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:api-rollback-v1",
+      "cpu": 256,
+      "memory": 768,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "uat"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "uat-jwt-secret-key-uat"
+        },
+        {
+          "name": "SKIP_MIGRATIONS",
+          "value": "false"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "trusted360-uat-aurora.cluster-c7ayucwkc59f.us-east-2.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "DB_USER",
+          "value": "trusted360"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "UatSecure456!"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "postgres"
+        },
+        {
+          "name": "DB_SSL",
+          "value": "true"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-uat",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    },
+    {
+      "name": "trusted360-dashboard",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:dashboard-rollback-v1",
+      "cpu": 256,
+      "memory": 256,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "VITE_API_BASE_URL",
+          "value": "http://trusted360-uat-alb-1649253466.us-east-2.elb.amazonaws.com"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-uat",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "dashboard"
+        }
+      }
+    }
+  ]
+}

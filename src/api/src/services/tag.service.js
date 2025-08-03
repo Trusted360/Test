@@ -1,6 +1,5 @@
 const { Tag } = require('../models');
 const logger = require('../utils/logger');
-const { redisClient } = require('./redis');
 
 /**
  * Tag service
@@ -32,9 +31,6 @@ class TagService {
       };
       
       const tag = await Tag.create(tagData);
-      
-      // Invalidate cache
-      await this._invalidateTagCache(tenantId);
       
       logger.info(`Created tag ${tag.id} with name '${tag.name}'`);
       return tag;
@@ -78,31 +74,7 @@ class TagService {
    */
   static async getTags(options, tenantId) {
     try {
-      // Check cache for common queries
-      if (!options.search && !options.parentId && options.limit === 100 && options.offset === 0) {
-        const cacheKey = options.category 
-          ? `tags:${tenantId}:category:${options.category}`
-          : `tags:${tenantId}:all`;
-        
-        const cachedTags = await redisClient.get(cacheKey);
-        if (cachedTags) {
-          logger.debug(`Retrieved tags from cache: ${cacheKey}`);
-          return JSON.parse(cachedTags);
-        }
-      }
-      
       const tags = await Tag.getAll(options, tenantId);
-      
-      // Cache common queries
-      if (!options.search && !options.parentId && options.limit === 100 && options.offset === 0) {
-        const cacheKey = options.category 
-          ? `tags:${tenantId}:category:${options.category}`
-          : `tags:${tenantId}:all`;
-        
-        await redisClient.set(cacheKey, JSON.stringify(tags), { EX: 3600 }); // Cache for 1 hour
-        logger.debug(`Cached tags: ${cacheKey}`);
-      }
-      
       return tags;
     } catch (error) {
       logger.error('Error getting tags:', error);
@@ -117,20 +89,7 @@ class TagService {
    */
   static async getTagCategories(tenantId) {
     try {
-      // Check cache
-      const cacheKey = `tag-categories:${tenantId}`;
-      const cachedCategories = await redisClient.get(cacheKey);
-      
-      if (cachedCategories) {
-        logger.debug('Retrieved tag categories from cache');
-        return JSON.parse(cachedCategories);
-      }
-      
       const categories = await Tag.getCategories(tenantId);
-      
-      // Cache categories
-      await redisClient.set(cacheKey, JSON.stringify(categories), { EX: 3600 }); // Cache for 1 hour
-      
       return categories;
     } catch (error) {
       logger.error('Error getting tag categories:', error);
@@ -146,20 +105,7 @@ class TagService {
    */
   static async getPopularTags(limit, tenantId) {
     try {
-      // Check cache
-      const cacheKey = `popular-tags:${tenantId}:${limit}`;
-      const cachedTags = await redisClient.get(cacheKey);
-      
-      if (cachedTags) {
-        logger.debug('Retrieved popular tags from cache');
-        return JSON.parse(cachedTags);
-      }
-      
       const tags = await Tag.getPopular(limit, tenantId);
-      
-      // Cache popular tags
-      await redisClient.set(cacheKey, JSON.stringify(tags), { EX: 1800 }); // Cache for 30 minutes
-      
       return tags;
     } catch (error) {
       logger.error('Error getting popular tags:', error);
@@ -192,9 +138,6 @@ class TagService {
       
       const tag = await Tag.update(id, data, tenantId);
       
-      // Invalidate cache
-      await this._invalidateTagCache(tenantId);
-      
       logger.info(`Updated tag ${id}`);
       return tag;
     } catch (error) {
@@ -219,9 +162,6 @@ class TagService {
       
       const success = await Tag.delete(id, tenantId);
       
-      // Invalidate cache
-      await this._invalidateTagCache(tenantId);
-      
       logger.info(`Deleted tag ${id}`);
       return success;
     } catch (error) {
@@ -245,20 +185,7 @@ class TagService {
         throw new Error(`Tag not found: ${tagId}`);
       }
       
-      // Check cache
-      const cacheKey = `related-tags:${tenantId}:${tagId}:${limit}`;
-      const cachedTags = await redisClient.get(cacheKey);
-      
-      if (cachedTags) {
-        logger.debug(`Retrieved related tags for ${tagId} from cache`);
-        return JSON.parse(cachedTags);
-      }
-      
       const relatedTags = await Tag.getRelated(tagId, limit, tenantId);
-      
-      // Cache related tags
-      await redisClient.set(cacheKey, JSON.stringify(relatedTags), { EX: 3600 }); // Cache for 1 hour
-      
       return relatedTags;
     } catch (error) {
       logger.error(`Error getting related tags for ${tagId}:`, error);
@@ -273,20 +200,7 @@ class TagService {
    */
   static async getTagUsageStats(tenantId) {
     try {
-      // Check cache
-      const cacheKey = `tag-stats:${tenantId}`;
-      const cachedStats = await redisClient.get(cacheKey);
-      
-      if (cachedStats) {
-        logger.debug('Retrieved tag usage statistics from cache');
-        return JSON.parse(cachedStats);
-      }
-      
       const stats = await Tag.getUsageStats(tenantId);
-      
-      // Cache statistics
-      await redisClient.set(cacheKey, JSON.stringify(stats), { EX: 3600 }); // Cache for 1 hour
-      
       return stats;
     } catch (error) {
       logger.error('Error getting tag usage statistics:', error);
@@ -317,9 +231,6 @@ class TagService {
       
       const success = await Tag.mergeTags(sourceTagId, targetTagId, tenantId);
       
-      // Invalidate cache
-      await this._invalidateTagCache(tenantId);
-      
       logger.info(`Merged tag ${sourceTagId} into ${targetTagId}`);
       return success;
     } catch (error) {
@@ -335,59 +246,11 @@ class TagService {
    */
   static async getTagHierarchy(tenantId) {
     try {
-      // Check cache
-      const cacheKey = `tag-hierarchy:${tenantId}`;
-      const cachedHierarchy = await redisClient.get(cacheKey);
-      
-      if (cachedHierarchy) {
-        logger.debug('Retrieved tag hierarchy from cache');
-        return JSON.parse(cachedHierarchy);
-      }
-      
       const hierarchy = await Tag.getHierarchy(tenantId);
-      
-      // Cache hierarchy
-      await redisClient.set(cacheKey, JSON.stringify(hierarchy), { EX: 3600 }); // Cache for 1 hour
-      
       return hierarchy;
     } catch (error) {
       logger.error('Error getting tag hierarchy:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Invalidate tag cache
-   * @param {string} tenantId - Tenant ID
-   * @private
-   */
-  static async _invalidateTagCache(tenantId) {
-    try {
-      const keys = [
-        `tags:${tenantId}:all`,
-        `tag-categories:${tenantId}`,
-        `tag-hierarchy:${tenantId}`,
-        `tag-stats:${tenantId}`
-      ];
-      
-      // Get all category-specific cache keys
-      const categoryKeys = await redisClient.keys(`tags:${tenantId}:category:*`);
-      keys.push(...categoryKeys);
-      
-      // Get all popular tag cache keys
-      const popularKeys = await redisClient.keys(`popular-tags:${tenantId}:*`);
-      keys.push(...popularKeys);
-      
-      // Get all related tag cache keys
-      const relatedKeys = await redisClient.keys(`related-tags:${tenantId}:*`);
-      keys.push(...relatedKeys);
-      
-      if (keys.length > 0) {
-        await redisClient.del(keys);
-        logger.debug(`Invalidated ${keys.length} tag cache keys for tenant ${tenantId}`);
-      }
-    } catch (error) {
-      logger.error('Error invalidating tag cache:', error);
     }
   }
 }

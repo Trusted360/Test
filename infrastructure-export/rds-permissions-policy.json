@@ -1,0 +1,107 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "RDSClusterManagement",
+            "Effect": "Allow",
+            "Action": [
+                "rds:CreateDBCluster",
+                "rds:DeleteDBCluster",
+                "rds:DescribeDBClusters",
+                "rds:ModifyDBCluster",
+                "rds:StartDBCluster",
+                "rds:StopDBCluster",
+                "rds:RestoreDBClusterFromSnapshot",
+                "rds:CreateDBClusterSnapshot",
+                "rds:DeleteDBClusterSnapshot",
+                "rds:DescribeDBClusterSnapshots"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RDSInstanceManagement",
+            "Effect": "Allow",
+            "Action": [
+                "rds:CreateDBInstance",
+                "rds:DeleteDBInstance",
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance",
+                "rds:RebootDBInstance",
+                "rds:StartDBInstance",
+                "rds:StopDBInstance"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RDSSubnetGroupManagement",
+            "Effect": "Allow",
+            "Action": [
+                "rds:CreateDBSubnetGroup",
+                "rds:DeleteDBSubnetGroup",
+                "rds:DescribeDBSubnetGroups",
+                "rds:ModifyDBSubnetGroup"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RDSParameterGroupManagement",
+            "Effect": "Allow",
+            "Action": [
+                "rds:CreateDBParameterGroup",
+                "rds:CreateDBClusterParameterGroup",
+                "rds:DeleteDBParameterGroup",
+                "rds:DeleteDBClusterParameterGroup",
+                "rds:DescribeDBParameterGroups",
+                "rds:DescribeDBClusterParameterGroups",
+                "rds:ModifyDBParameterGroup",
+                "rds:ModifyDBClusterParameterGroup",
+                "rds:DescribeDBParameters",
+                "rds:DescribeDBClusterParameters",
+                "rds:ResetDBParameterGroup",
+                "rds:ResetDBClusterParameterGroup"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RDSMonitoringAndLogs",
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBLogFiles",
+                "rds:DownloadDBLogFilePortion",
+                "rds:DescribeEvents",
+                "rds:DescribeEventCategories",
+                "rds:DescribeEventSubscriptions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VPCNetworkingForRDS",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeVpcs",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeNatGateways"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SecurityGroupManagementForRDS",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateSecurityGroup",
+                "ec2:DeleteSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:CreateTags",
+                "ec2:DescribeTags"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

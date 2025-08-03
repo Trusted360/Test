@@ -1,241 +1,236 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { 
-  Container, 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
-  Paper, 
+import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  Container,
+  TextField,
+  Typography,
+  Paper,
+  Alert,
+  CircularProgress,
   Link,
-  Alert, 
-  CircularProgress
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as yup from 'yup';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0);
-  
-  // Use refs to persist values across potential re-renders
-  const errorRef = useRef('');
-  const emailRef = useRef('');
-  const passwordRef = useRef('');
-  const isSettingErrorRef = useRef(false);
-  
-  const { login, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  
-  // Sync refs with state
-  useEffect(() => {
-    errorRef.current = error;
-    emailRef.current = email;
-    passwordRef.current = password;
-  }, [error, email, password]);
-  
-  // Restore state from refs if component was re-rendered during error setting
-  useEffect(() => {
-    if (isSettingErrorRef.current && !error && errorRef.current) {
-      console.log('Restoring error state from ref:', errorRef.current);
-      setError(errorRef.current);
-      isSettingErrorRef.current = false;
-    }
-    if (!email && emailRef.current) {
-      console.log('Restoring email from ref:', emailRef.current);
-      setEmail(emailRef.current);
-    }
-    if (!password && passwordRef.current) {
-      console.log('Restoring password from ref');
-      setPassword(passwordRef.current);
-    }
-  }, [forceUpdate, error, email, password]);
+const validationSchema = yup.object({
+  email: yup
+    .string()
+    .email('Enter a valid email')
+    .required('Email is required'),
+  password: yup
+    .string()
+    .min(6, 'Password should be of minimum 6 characters length')
+    .required('Password is required'),
+});
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log('Form submitted'); // Debug log
-    
-    // Clear any existing errors
-    setError('');
-    
-    // Email validation
-    if (!email.trim()) {
-      setError('Email is required');
-      return;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    
-    // Password validation (simple check for now)
-    if (!password) {
-      setError('Password is required');
-      return;
-    }
-    
-    console.log('Validation passed, attempting login...'); // Debug log
-    setIsLoading(true);
-    
-    try {
-      console.log('Calling login function with:', email); // Debug log
-      await login(email, password);
-      console.log('Login successful!'); // Debug log
-      // Navigation is handled in the auth context
-    } catch (err: any) {
-      console.error('Login error in component:', err); // Debug log
-      console.error('Error response data:', err.response?.data); // Debug log
-      
-      let errorMessage = 'Login failed. Please try again.';
-      
-      // Handle different error types based on error codes
-      if (err.response?.data?.error) {
-        const { message, code } = err.response.data.error;
-        console.log('Error code:', code, 'Message:', message); // Debug log
-        
-        switch (code) {
-          case 'INVALID_CREDENTIALS':
-            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-            break;
-          case 'INVALID_CREDENTIALS_WARNING':
-            errorMessage = message; // Show the specific warning about account lockout
-            break;
-          case 'ACCOUNT_LOCKED':
-            errorMessage = message; // Show the specific lockout message with time remaining
-            break;
-          default:
-            errorMessage = message || 'Login failed. Please try again.';
-        }
-      } else if (err.message === 'Invalid email or password') {
-        errorMessage = 'Invalid email or password. Please try again.';
-      } else {
-        errorMessage = `Login failed: ${err.message}`;
+const Login: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: '',
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await login(values.email, values.password);
+        // Navigation is handled in AuthContext
+      } catch (err: any) {
+        setError(err.message || 'Login failed');
+      } finally {
+        setLoading(false);
       }
-      
-      console.log('Setting error message:', errorMessage); // Debug log
-      
-      // Set loading to false and show error with ref-based persistence
-      setIsLoading(false);
-      isSettingErrorRef.current = true;
-      errorRef.current = errorMessage;
-      setError(errorMessage);
-      
-      // Force a re-render to trigger restoration logic if needed
-      setTimeout(() => {
-        setForceUpdate(prev => prev + 1);
-      }, 50);
-      
-      console.log('Error state set:', errorMessage); // Debug log
-    }
-  };
+    },
+  });
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          py: 8,
-        }}
-      >
+    <Box
+      sx={{
+        minHeight: isMobile ? '100dvh' : '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        padding: isMobile ? 1 : 3,
+        // Safe area support for mobile devices
+        paddingTop: isMobile ? 'env(safe-area-inset-top, 1rem)' : 3,
+        paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 1rem)' : 3,
+      }}
+    >
+      <Container maxWidth={isMobile ? false : 'sm'}>
         <Paper
-          elevation={3}
+          elevation={isMobile ? 1 : 3}
           sx={{
-            p: 4,
-            width: '100%',
+            p: isMobile ? 3 : 4,
             borderRadius: 2,
+            width: '100%',
+            maxWidth: isMobile ? '100%' : 400,
+            margin: '0 auto'
           }}
         >
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-            <img 
-              src="/logo2.png" 
-              alt="Trusted 360" 
-              style={{ height: '60px', width: 'auto' }}
+          {/* Logo and branding */}
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <img
+              src="/Trusted360_Logo_Final_1.png"
+              alt="Trusted 360"
+              style={{
+                maxHeight: isMobile ? '80px' : '100px',
+                maxWidth: isMobile ? '280px' : '350px',
+                width: 'auto',
+                height: 'auto',
+                marginBottom: '16px'
+              }}
             />
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{
+                fontSize: isMobile ? '0.875rem' : '1rem',
+                fontWeight: 500
+              }}
+            >
+              Operations Management Platform
+            </Typography>
           </Box>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                fontSize: isMobile ? '0.875rem' : '1rem'
+              }}
+            >
               {error}
             </Alert>
           )}
-          
-          <Alert severity="info" sx={{ mb: 3 }}>
-            Demo accounts:
-            <br />
-            - Admin: admin@trusted360.com
-            <br />
-            - User: user@trusted360.com
-            <br />
-            Password: demo123
-          </Alert>
 
-          <Box component="form" onSubmit={handleSubmit} noValidate>
+          <form onSubmit={formik.handleSubmit}>
             <TextField
-              margin="normal"
-              required
               fullWidth
               id="email"
-              label="Email Address"
               name="email"
+              label="Email"
+              type="email"
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.email && Boolean(formik.errors.email)}
+              helperText={formik.touched.email && formik.errors.email}
+              margin="normal"
               autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                // Clear error when user starts typing
-                if (error) {
-                  setError('');
-                }
+              autoFocus={!isMobile}
+              sx={{
+                mb: 2,
+                '& .MuiInputBase-root': {
+                  minHeight: isMobile ? 56 : 48,
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: isMobile ? '1rem' : '0.875rem',
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: isMobile ? '1rem' : '0.875rem',
+                },
               }}
             />
+            
             <TextField
-              margin="normal"
-              required
               fullWidth
+              id="password"
               name="password"
               label="Password"
               type="password"
-              id="password"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.password && Boolean(formik.errors.password)}
+              helperText={formik.touched.password && formik.errors.password}
+              margin="normal"
               autoComplete="current-password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                // Clear error when user starts typing
-                if (error) {
-                  setError('');
-                }
+              sx={{
+                mb: 3,
+                '& .MuiInputBase-root': {
+                  minHeight: isMobile ? 56 : 48,
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: isMobile ? '1rem' : '0.875rem',
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: isMobile ? '1rem' : '0.875rem',
+                },
               }}
             />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              size="large"
-              disabled={isLoading || authLoading}
-              sx={{ mt: 3, mb: 2 }}
+              disabled={loading}
+              sx={{
+                mt: 2,
+                mb: 2,
+                minHeight: isMobile ? 56 : 48,
+                fontSize: isMobile ? '1.1rem' : '1rem',
+                fontWeight: 'bold',
+              }}
             >
-              {(isLoading || authLoading) ? <CircularProgress size={24} /> : 'Sign In'}
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                'Sign In'
+              )}
             </Button>
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Typography variant="body2">
-                Don't have an account?{' '}
-                <Link component={RouterLink} to="/register">
-                  Sign up
-                </Link>
-              </Typography>
-            </Box>
+          </form>
+
+          {/* Create Account Link */}
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Don't have an account?{' '}
+              <Link
+                component="button"
+                variant="body2"
+                onClick={() => navigate('/register')}
+                sx={{
+                  textDecoration: 'none',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.875rem' : '0.875rem',
+                }}
+              >
+                Create Account
+              </Link>
+            </Typography>
+          </Box>
+
+
+          {/* Copyright */}
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                fontSize: isMobile ? '0.75rem' : '0.875rem',
+              }}
+            >
+              © {new Date().getFullYear()} Trusted 360. All rights reserved.
+            </Typography>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 

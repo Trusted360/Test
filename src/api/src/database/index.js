@@ -8,7 +8,7 @@ const knexInstance = knex({
   client: 'pg',
   connection: config.database.url,
   pool: config.database.pool,
-  debug: config.nodeEnv === 'development',
+  debug: false,
   asyncStackTraces: config.nodeEnv === 'development'
 });
 
@@ -24,11 +24,24 @@ async function setupDatabase() {
     await knexInstance.raw('SELECT 1');
     logger.info('Database connection established successfully');
     
-    // Run migrations in development or test mode if not disabled
-    if ((config.nodeEnv === 'development' || config.nodeEnv === 'test') && process.env.SKIP_MIGRATIONS !== 'true') {
+    // Run migrations if not explicitly disabled
+    if (process.env.SKIP_MIGRATIONS !== 'true') {
+      logger.info('Running cleanup migration...');
+      await knexInstance('knex_migrations')
+        .whereIn('name', [
+          '20250731000000_create_sop_management_system.js',
+          '20250802000001_create_sop_tables.js',
+          '20250803000000_replace_sop_with_simple_tables.js',
+          '20250805000000_nuclear_sop_cleanup.js'
+        ])
+        .delete();
+      logger.info('Cleanup migration completed');
+
       logger.info('Running migrations...');
       await knexInstance.migrate.latest();
       logger.info('Migrations completed');
+    } else {
+      logger.info('Migrations skipped (SKIP_MIGRATIONS=true)');
     }
     
     return knexInstance;

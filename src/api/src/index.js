@@ -10,7 +10,6 @@ const resolvers = require('./graphql/resolvers');
 const routesFn = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 const { setupDatabase } = require('./database');
-const { setupRedis } = require('./services/redis');
 const logger = require('./utils/logger');
 const { User } = require('./models');
 const Session = require('./models/session.model');
@@ -21,6 +20,8 @@ const ChecklistService = require('./services/checklist.service');
 const VideoAnalysisService = require('./services/videoAnalysis.service');
 const ChatService = require('./services/chat.service');
 const AuditService = require('./services/audit.service');
+const SOPService = require('./services/sop.service');
+const SOPModel = require('./models/sop.model');
 const SchedulerService = require('./services/scheduler.service');
 const emailService = require('./services/email.service');
 const auditMiddleware = require('./middleware/auditMiddleware');
@@ -103,6 +104,18 @@ function initializeServices(db) {
   // Initialize ChatService with database connection
   const chatServiceInstance = new ChatService(db);
   
+  // Initialize SOP model and service
+  let sopServiceInstance;
+  try {
+    const sopModelInstance = new SOPModel(db);
+    sopServiceInstance = new SOPService(sopModelInstance);
+    sopServiceInstance.auditService = auditServiceInstance;
+    logger.info('SOP service initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize SOP service:', error);
+    throw error;
+  }
+  
   // Initialize SchedulerService with database connection and checklist service
   const schedulerServiceInstance = new SchedulerService(db, checklistServiceInstance);
   
@@ -115,6 +128,7 @@ function initializeServices(db) {
     VideoAnalysisService: videoAnalysisServiceInstance,
     ChatService: chatServiceInstance,
     AuditService: auditServiceInstance,
+    sopService: sopServiceInstance,
     SchedulerService: schedulerServiceInstance,
     // Make other models/services available if needed by other routes
     userModel,
@@ -157,30 +171,57 @@ app.use(errorHandler);
 // Start server
 async function startServer() {
   try {
-    db = await setupDatabase();
-    logger.info('Database connection established');
+    // Conditionally setup database
+    if (process.env.SKIP_DATABASE !== 'true') {
+      db = await setupDatabase();
+      logger.info('Database connection established');
+    } else {
+      logger.info('Database setup skipped (SKIP_DATABASE=true)');
+      // Create a mock database object for services that expect it
+      db = {
+        query: () => Promise.resolve([]),
+        raw: () => Promise.resolve([]),
+        select: () => Promise.resolve([]),
+        insert: () => Promise.resolve([]),
+        update: () => Promise.resolve([]),
+        delete: () => Promise.resolve([])
+      };
+    }
 
-    await setupRedis();
-    logger.info('Redis connection established');
+    // Redis has been completely removed from the application
+    logger.info('Redis removed - application now uses direct database queries');
 
     const services = initializeServices(db);
     
-    // Start the scheduler service
-    services.SchedulerService.start(60); // Run every hour
-    logger.info('Checklist scheduler started');
+    // Only start scheduler if database is available
+    if (process.env.SKIP_DATABASE !== 'true') {
+      services.SchedulerService.start(60); // Run every hour
+      logger.info('Checklist scheduler started');
+    } else {
+      logger.info('Scheduler skipped (SKIP_DATABASE=true)');
+    }
     
     // Apply audit middleware to capture request context
     app.use('/api', auditMiddleware(services.AuditService));
     
     // Setup routes with services
-    const appRoutes = routesFn(services); // Call the routes function with services
-    app.use('/api', appRoutes); // Mount the configured routes
+    try {
+      const appRoutes = routesFn(services); // Call the routes function with services
+      app.use('/api', appRoutes); // Mount the configured routes
+      logger.info('All routes registered successfully');
+    } catch (error) {
+      logger.error('Failed to register routes:', error);
+      throw error;
+    }
 
     resolvers._services = services;
 
     const server = app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);
       logger.info(`GraphQL endpoint available at http://localhost:${config.port}/graphql`);
+      if (process.env.SKIP_DATABASE === 'true') {
+        logger.info('Running in no-database mode - some features may be limited');
+      }
     });
 
     // Handle graceful shutdown
@@ -195,6 +236,16 @@ async function startServer() {
     return server;
   } catch (error) {
     logger.error('Failed to start server:', error);
+    // Log more details about the error
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    if (error.code) {
+      logger.error('Error code:', error.code);
+    }
+    if (error.message) {
+      logger.error('Error message:', error.message);
+    }
     process.exit(1);
   }
 }

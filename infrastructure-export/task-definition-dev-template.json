@@ -1,0 +1,98 @@
+{
+  "family": "trusted360-dev",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::119268833526:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "trusted360-api",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:dev-latest",
+      "cpu": 256,
+      "memory": 768,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "development"
+        },
+        {
+          "name": "DATABASE_URL",
+          "value": "postgresql://trusted360:DEV_PASSWORD@trusted360-dev-aurora.cluster-XXXXX.us-east-2.rds.amazonaws.com:5432/postgres"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "trusted360-dev-aurora.cluster-XXXXX.us-east-2.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "postgres"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "DEV_PASSWORD_TO_BE_REPLACED"
+        },
+        {
+          "name": "DB_USERNAME",
+          "value": "trusted360"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "development-jwt-secret-key-dev"
+        },
+        {
+          "name": "SKIP_MIGRATIONS",
+          "value": "false"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-dev",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    },
+    {
+      "name": "trusted360-dashboard",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:dashboard-dev-latest",
+      "cpu": 256,
+      "memory": 256,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "VITE_API_BASE_URL",
+          "value": "http://trusted360-dev-alb-XXXXX.us-east-2.elb.amazonaws.com"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-dev",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "dashboard"
+        }
+      }
+    }
+  ]
+}

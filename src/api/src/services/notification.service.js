@@ -1,13 +1,12 @@
 const logger = require('../utils/logger');
-const { 
-  Notification, 
-  NotificationRecipient, 
-  NotificationChannel, 
+const {
+  Notification,
+  NotificationRecipient,
+  NotificationChannel,
   NotificationDelivery,
   NotificationTemplate,
   NotificationPreference
 } = require('../models');
-const redis = require('./redis');
 
 /**
  * Notification service

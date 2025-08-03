@@ -133,6 +133,13 @@ services:
       CHAT_CONTEXT_WINDOW: 8192
       CHAT_MAX_HISTORY: 10
       CHAT_RESPONSE_TIMEOUT: 30000
+      # SOP Configuration
+      SOP_UPLOAD_MAX_SIZE: 52428800
+      SOP_UPLOAD_PATH: /app/uploads/sops
+      SOP_ALLOWED_TYPES: pdf,doc,docx
+      SOP_STORAGE_ENABLED: "true"
+      SOP_CONVERSION_ENABLED: "true"
+      SOP_MOBILE_CAMERA_ENABLED: "true"
     volumes:
       - ./src/api/src:/app/src
       - ./src/api/package.json:/app/package.json
@@ -141,6 +148,7 @@ services:
       - ./src/api/migrations:/app/migrations
       - /app/node_modules
       - recipe_images:/app/storage/images
+      - sop_uploads:/app/uploads/sops
     networks:
       - trusted360-network
     restart: unless-stopped
@@ -197,3 +205,4 @@ volumes:
   redis_data:
   recipe_images:
   ollama_data:
+  sop_uploads:

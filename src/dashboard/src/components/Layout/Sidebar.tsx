@@ -21,7 +21,8 @@ import {
   Assignment as ChecklistIcon,
   Videocam as VideoIcon,
   ManageAccounts as PropertyManagerIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  Description as SOPIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -56,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Properties', icon: <BusinessIcon />, path: '/properties' },
     { text: 'Checklists', icon: <ChecklistIcon />, path: '/checklists' },
+    { text: 'SOPs', icon: <SOPIcon />, path: '/sops' },
     { text: 'Video Analysis', icon: <VideoIcon />, path: '/video' },
     { text: 'Property Audits', icon: <PropertyManagerIcon />, path: '/property-manager' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
@@ -110,11 +112,28 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
             <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
               <ListItemButton
                 sx={{
-                  minHeight: 48,
+                  minHeight: isMobile ? 56 : 48, // Larger touch targets on mobile
                   justifyContent: (isMobile || open) ? 'initial' : 'center',
-                  px: 2.5,
-                  backgroundColor: location.pathname === item.path ? 
+                  px: isMobile ? 3 : 2.5, // More padding on mobile
+                  py: isMobile ? 1.5 : 1, // Vertical padding for thumb-friendly spacing
+                  mb: isMobile ? 0.5 : 0, // Small margin between items on mobile
+                  backgroundColor: location.pathname === item.path ?
                     theme.palette.action.selected : 'transparent',
+                  borderRadius: isMobile ? 2 : 0, // Rounded corners on mobile for better visual feedback
+                  mx: isMobile ? 1 : 0, // Side margins on mobile
+                  transition: theme.transitions.create(['background-color', 'transform'], {
+                    duration: theme.transitions.duration.shorter,
+                  }),
+                  '&:hover': {
+                    backgroundColor: location.pathname === item.path ?
+                      theme.palette.action.selected :
+                      theme.palette.action.hover,
+                    transform: isMobile ? 'scale(1.02)' : 'none', // Subtle scale on mobile
+                  },
+                  '&:active': {
+                    transform: isMobile ? 'scale(0.98)' : 'none', // Touch feedback
+                    backgroundColor: theme.palette.action.selected,
+                  },
                 }}
                 onClick={() => handleNavigation(item.path)}
               >
@@ -123,13 +142,28 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
                     minWidth: 0,
                     mr: (isMobile || open) ? 3 : 'auto',
                     justifyContent: 'center',
+                    '& .MuiSvgIcon-root': {
+                      fontSize: isMobile ? '1.5rem' : '1.25rem', // Larger icons on mobile
+                      color: location.pathname === item.path ?
+                        theme.palette.primary.main :
+                        theme.palette.text.primary,
+                    }
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  sx={{ opacity: (isMobile || open) ? 1 : 0 }} 
+                <ListItemText
+                  primary={item.text}
+                  sx={{
+                    opacity: (isMobile || open) ? 1 : 0,
+                    '& .MuiTypography-root': {
+                      fontSize: isMobile ? '1rem' : '0.875rem', // Larger text on mobile
+                      fontWeight: location.pathname === item.path ? 600 : 400,
+                      color: location.pathname === item.path ?
+                        theme.palette.primary.main :
+                        theme.palette.text.primary,
+                    }
+                  }}
                 />
               </ListItemButton>
             </ListItem>
@@ -140,9 +174,23 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
           <ListItem disablePadding sx={{ display: 'block' }}>
             <ListItemButton
               sx={{
-                minHeight: 48,
+                minHeight: isMobile ? 56 : 48, // Larger touch targets on mobile
                 justifyContent: (isMobile || open) ? 'initial' : 'center',
-                px: 2.5,
+                px: isMobile ? 3 : 2.5, // More padding on mobile
+                py: isMobile ? 1.5 : 1, // Vertical padding for thumb-friendly spacing
+                borderRadius: isMobile ? 2 : 0, // Rounded corners on mobile
+                mx: isMobile ? 1 : 0, // Side margins on mobile
+                transition: theme.transitions.create(['background-color', 'transform'], {
+                  duration: theme.transitions.duration.shorter,
+                }),
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                  transform: isMobile ? 'scale(1.02)' : 'none', // Subtle scale on mobile
+                },
+                '&:active': {
+                  transform: isMobile ? 'scale(0.98)' : 'none', // Touch feedback
+                  backgroundColor: theme.palette.action.selected,
+                },
               }}
               onClick={handleLogout}
             >
@@ -151,13 +199,24 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
                   minWidth: 0,
                   mr: (isMobile || open) ? 3 : 'auto',
                   justifyContent: 'center',
+                  '& .MuiSvgIcon-root': {
+                    fontSize: isMobile ? '1.5rem' : '1.25rem', // Larger icons on mobile
+                    color: theme.palette.error.main, // Red color for logout
+                  }
                 }}
               >
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText 
-                primary="Logout" 
-                sx={{ opacity: (isMobile || open) ? 1 : 0 }} 
+              <ListItemText
+                primary="Logout"
+                sx={{
+                  opacity: (isMobile || open) ? 1 : 0,
+                  '& .MuiTypography-root': {
+                    fontSize: isMobile ? '1rem' : '0.875rem', // Larger text on mobile
+                    fontWeight: 500,
+                    color: theme.palette.error.main, // Red color for logout
+                  }
+                }}
               />
             </ListItemButton>
           </ListItem>

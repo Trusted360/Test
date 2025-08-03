@@ -183,7 +183,7 @@ module.exports = function(services) {
         });
       }
 
-      const bcrypt = require('bcryptjs');
+      const bcrypt = require('bcrypt');
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const [userId] = await db.transaction(async (trx) => {
@@ -300,7 +300,7 @@ module.exports = function(services) {
         });
       }
 
-      const bcrypt = require('bcryptjs');
+      const bcrypt = require('bcrypt');
       const hashedPassword = await bcrypt.hash(password, 10);
 
       await db('users')

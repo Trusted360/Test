@@ -13,6 +13,7 @@ const Register = lazy(() => import('@pages/Auth/Register'));
 const NotFound = lazy(() => import('@pages/NotFound'));
 const Settings = lazy(() => import('@pages/Settings'));
 const Properties = lazy(() => import('@pages/Properties'));
+const PropertyDetail = lazy(() => import('@pages/Properties/PropertyDetail'));
 const Checklists = lazy(() => import('@pages/Checklists'));
 const ChecklistDetail = lazy(() => import('@pages/Checklists/ChecklistDetail'));
 const VideoAnalysis = lazy(() => import('@pages/Video'));
@@ -24,6 +25,11 @@ const ActionItemsReport = lazy(() => import('@pages/PropertyManager/ActionItemsR
 
 // User Management pages
 const Users = lazy(() => import('@pages/Users'));
+
+// SOP pages
+const SOPs = lazy(() => import('./pages/SOPs'));
+const SOPDetail = lazy(() => import('./pages/SOPs/SOPDetail'));
+const SOPBuilder = lazy(() => import('./pages/SOPs/SOPBuilder'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('@pages/Admin/AdminDashboard'));
@@ -96,7 +102,31 @@ function App() {
             }
           />
           <Route
+            path="/properties/new"
+            element={
+              <ProtectedRoute>
+                <Properties />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/properties/:id"
+            element={
+              <ProtectedRoute>
+                <PropertyDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/checklists"
+            element={
+              <ProtectedRoute>
+                <Checklists />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checklists/new"
             element={
               <ProtectedRoute>
                 <Checklists />
@@ -204,6 +234,40 @@ function App() {
             element={
               <ProtectedRoute>
                 <Users />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* SOP Routes */}
+          <Route
+            path="/sops"
+            element={
+              <ProtectedRoute>
+                <SOPs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sops/create"
+            element={
+              <ProtectedRoute>
+                <SOPBuilder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sops/:id"
+            element={
+              <ProtectedRoute>
+                <SOPDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sops/:id/edit"
+            element={
+              <ProtectedRoute>
+                <SOPBuilder />
               </ProtectedRoute>
             }
           />

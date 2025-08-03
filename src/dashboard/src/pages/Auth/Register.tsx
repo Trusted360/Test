@@ -95,10 +95,15 @@ const Register: React.FC = () => {
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-            <img 
-              src="/logo2.png" 
-              alt="Trusted 360" 
-              style={{ height: '60px', width: 'auto' }}
+            <img
+              src="/Trusted360_Logo_Final_1.png"
+              alt="Trusted 360"
+              style={{
+                maxHeight: '90px',
+                maxWidth: '315px',
+                width: 'auto',
+                height: 'auto'
+              }}
             />
           </Box>
           <Typography variant="h5" component="h1" align="center" gutterBottom>

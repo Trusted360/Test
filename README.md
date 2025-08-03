@@ -4,13 +4,19 @@
 
 Trusted 360 is a comprehensive security monitoring platform designed specifically for self-storage facilities. It provides real-time surveillance, automated alerts, and facility management tools to ensure the safety and security of storage units.
 
-## 🚀 Current Status
+## 🚀 Current Status (Updated July 31, 2025)
 
-✅ **Authentication System**: Fully operational with database-backed sessions  
-✅ **Dashboard UI**: Working with Material-UI components  
-✅ **API Infrastructure**: RESTful + GraphQL endpoints ready  
-✅ **Database**: PostgreSQL with multi-tenant support  
-✅ **Docker Setup**: Complete containerization  
+✅ **Authentication System**: Fully operational with native bcrypt implementation
+✅ **Dashboard UI**: Working with Material-UI components and mobile-first design
+✅ **API Infrastructure**: RESTful + GraphQL endpoints ready
+✅ **Database**: PostgreSQL with multi-tenant support (Pre-SOP clean state)
+✅ **Docker Setup**: Complete containerization with rollback-clean images
+✅ **Mobile Optimization**: Full mobile-first responsive design with PWA features
+✅ **Production Deployment**: AWS ECS with clean rollback images (`api-rollback-v1`, `dashboard-rollback-v1`)
+❌ **SOP Management System**: REMOVED - System rolled back to pre-SOP state due to critical authentication issues
+
+### ⚠️ Critical System Notice
+The SOP (Standard Operating Procedures) management system has been **completely removed** from the production environment due to critical authentication failures caused by bcrypt library incompatibilities and database migration corruption. The system has been restored to its pre-SOP working state with all authentication functionality confirmed operational.
 
 ## Quick Start
 
@@ -37,9 +43,18 @@ npm run dev
 - API: http://localhost:3001
 - GraphQL: http://localhost:3001/graphql
 
-### Login Credentials
-- **Admin**: admin@trusted360.com / demo123!
-- **User**: user@trusted360.com / demo123
+### Login Credentials (Post-Rollback - Confirmed Working)
+- **Demo User**: demo_user@example.com / demo123
+- **Demo Admin**: demo_admin@example.com / admin123
+- **Demo Manager**: demo_manager@example.com / manager123
+
+### Current Production Environment
+- **API**: `119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:api-rollback-v1`
+- **Dashboard**: `119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:dashboard-rollback-v1`
+- **Cluster**: `node-app-cluster` (AWS ECS Fargate)
+- **Task Definition**: `trusted360-rollback:4`
+- **Database**: Aurora PostgreSQL (clean pre-SOP state)
+- **Authentication**: Native bcrypt implementation (reverted from bcryptjs)
 
 ## Architecture
 
@@ -49,14 +64,24 @@ npm run dev
 - **Database**: PostgreSQL with Knex.js migrations
 - **Caching**: Redis
 - **Containerization**: Docker & Docker Compose
-- **Authentication**: Session-based with bcrypt password hashing
+- **Authentication**: Session-based with native bcrypt password hashing (reverted from bcryptjs)
 
 ### Project Structure
 ```
 trusted360/
 ├── src/
 │   ├── api/           # Backend API service
+│   │   ├── src/
+│   │   │   ├── controllers/    # API controllers (SOP controllers removed)
+│   │   │   ├── routes/         # API routes (SOP routes removed)
+│   │   │   └── services/       # Business logic services
+│   │   └── migrations/         # Database migrations (SOP migrations removed)
 │   └── dashboard/     # React frontend application
+│       └── src/
+│           ├── pages/          # Core application pages (SOP pages removed)
+│           ├── services/       # Frontend services (SOP service removed)
+│           ├── types/          # TypeScript definitions (SOP types removed)
+│           └── components/     # Reusable UI components
 ├── database/          # Database schemas and migrations
 ├── artifacts/         # Documentation and specifications
 ├── config/            # Configuration files
@@ -65,20 +90,29 @@ trusted360/
 
 ## Features
 
-### Current (Baseline)
+### Current (Production Ready)
 - ✅ User authentication and authorization
 - ✅ Multi-tenant data isolation
 - ✅ Activity logging and audit trail
 - ✅ Protected routes and API endpoints
-- ✅ Responsive dashboard UI
+- ✅ Mobile-first responsive dashboard UI
+- ✅ Progressive Web App (PWA) capabilities
+- ✅ **Core Checklist System**:
+  - Step-by-step task management
+  - Mobile camera capture for validation
+  - Property-based assignments
+  - Scheduling and completion tracking
+- ✅ **Property Management**:
+  - Multi-property support
+  - Property-specific assignments
+  - Mobile-optimized interfaces
 
 ### Planned Features
 - 🚧 Real-time camera feed monitoring
 - 🚧 AI-powered incident detection
-- 🚧 Mobile security audits with geo-stamping
 - 🚧 Automated alert system
-- 🚧 Facility management tools
-- 🚧 Compliance reporting
+- 🚧 Advanced compliance reporting
+- 🚧 Integration with external security systems
 
 ## Development
 
@@ -116,9 +150,12 @@ See `.env.example` for required configuration. Key variables:
 ## Documentation
 
 - [Development Guide](DEVELOPMENT.md) - Detailed setup instructions
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Cross-platform deployment instructions
 - [Baseline Setup](BASELINE_SETUP_COMPLETE.md) - Current implementation status
 - [Authentication](artifacts/architecture/AUTHENTICATION_ANALYSIS.md) - Auth system details
 - [Database Migrations](DATABASE_MIGRATION_AUDIT.md) - Migration best practices
+- [Mobile Deployment Status](MOBILE_DEPLOYMENT_STATUS.md) - Mobile optimization details
+- [Property Manager System Summary](PROPERTY_MANAGER_SYSTEM_SUMMARY.md) - Property management features
 
 ## Troubleshooting
 
@@ -166,5 +203,36 @@ For issues and questions:
 
 ---
 
-**Current Version**: 0.1.0 (Baseline)  
-**Last Updated**: May 31, 2025
+**Current Version**: 1.0.0 (Production Ready)
+**Last Updated**: July 31, 2025
+
+## Recent Updates
+
+### v1.0.1 - SOP System Rollback (July 31, 2025)
+- ❌ **SOP Management System REMOVED**: Complete rollback due to critical authentication issues
+- ✅ **Authentication System Restored**: Reverted from bcryptjs back to native bcrypt
+- ✅ **Database Migration Cleanup**: Removed problematic SOP migration files
+- ✅ **Production Deployment**: Clean rollback images deployed to AWS ECS
+- ✅ **System Stability**: All core functionality confirmed working
+- ✅ **Documentation**: Comprehensive incident report and lessons learned documented
+
+#### Critical Technical Details:
+- **Root Cause**: bcrypt/bcryptjs incompatibility broke password authentication
+- **Migration Issues**: Database migration corruption when rolling back to pre-SOP state
+- **Resolution**: Complete SOP code removal and native bcrypt restoration
+- **Current Images**: `api-rollback-v1` and `dashboard-rollback-v1` in production
+- **Authentication Method**: Native bcrypt with existing password hashes preserved
+
+### v1.0.0 - SOP Management System (July 2025) [ROLLED BACK]
+- ❌ **REMOVED**: Complete SOP system due to authentication incompatibility
+- ❌ **REMOVED**: All SOP-related database migrations
+- ❌ **REMOVED**: SOP controllers, services, and UI components
+- **Lessons Learned**: Documented in comprehensive incident report
+
+### v0.9.0 - Mobile Optimization (June 2025)
+- ✅ Mobile-first responsive design overhaul
+- ✅ Progressive Web App (PWA) implementation
+- ✅ Touch-friendly interfaces and gestures
+- ✅ Mobile camera capture functionality
+- ✅ Offline capabilities with service workers
+- ✅ Mobile-optimized navigation systems

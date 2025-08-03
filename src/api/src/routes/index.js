@@ -14,9 +14,13 @@ const auditRoutes = require('./audit.routes');
 const settingsRoutes = require('./settings.routes');
 const propertyManagerRoutes = require('./propertyManager.routes');
 const userRoutes = require('./user.routes');
+const sopRoutes = require('./sop.routes');
 
 // Import middleware
 const { authenticateJWT, authMiddleware } = require('../middleware/auth');
+
+// Import rollback configuration
+const { enableSopModule } = require('../config/sop-rollback');
 
 module.exports = function(services) { // Function that accepts services
   const router = express.Router();
@@ -54,6 +58,14 @@ module.exports = function(services) { // Function that accepts services
   
   // User management routes (protected by session-aware auth middleware)
   router.use('/users', authMiddleware(services.sessionModel, services.userModel), userRoutes(services));
+  
+  // SOP routes (protected by session-aware auth middleware) - with feature flag
+  if (enableSopModule) {
+    router.use('/sops', authMiddleware(services.sessionModel, services.userModel), sopRoutes(services));
+    console.log('SOP module is ENABLED');
+  } else {
+    console.log('SOP module is DISABLED (set ENABLE_SOP_MODULE=true to enable)');
+  }
 
   // API version and status
   router.get('/', (req, res) => {

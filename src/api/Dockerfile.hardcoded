@@ -1,0 +1,3 @@
+FROM 119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:api-clean
+COPY start-hardcoded.js /app/
+CMD ["node", "start-hardcoded.js"]

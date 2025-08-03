@@ -69,12 +69,14 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, open }) => {
           <MenuIcon />
         </IconButton>
         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-          <img 
-            src="/logo.png" 
-            alt="Trusted 360" 
-            style={{ 
-              height: isMobile ? '28px' : '32px', 
-              width: 'auto' 
+          <img
+            src="/Trusted360_Logo_Final_1.png"
+            alt="Trusted 360"
+            style={{
+              maxHeight: isMobile ? '32px' : '40px',
+              maxWidth: isMobile ? '115px' : '145px',
+              width: 'auto',
+              height: 'auto'
             }}
           />
         </Box>

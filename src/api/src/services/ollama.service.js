@@ -1,7 +1,6 @@
 const axios = require('axios');
 const config = require('../config');
 const logger = require('../utils/logger');
-const { redisClient } = require('./redis');
 const { mapOllamaError, ResponseParsingError } = require('../utils/error-handler');
 
 // Create axios instance for Ollama API
@@ -116,21 +115,11 @@ async function withRetry(fn, options = {}) {
  */
 async function getModels() {
   try {
-    // Check cache first
-    const cachedModels = await redisClient.get('ollama:models');
-    if (cachedModels) {
-      logger.debug('Returning cached Ollama models');
-      return JSON.parse(cachedModels);
-    }
-
     // Fetch from Ollama API with retry
     const models = await withRetry(async () => {
       const response = await ollamaClient.get('/api/tags');
       return response.data.models || [];
     });
-    
-    // Cache results for 5 minutes
-    await redisClient.set('ollama:models', JSON.stringify(models), { EX: 300 });
     
     return models;
   } catch (error) {

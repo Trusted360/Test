@@ -1,0 +1,100 @@
+{
+  "family": "trusted360-{ENVIRONMENT}",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::119268833526:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "trusted360-api",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:api-rollback-v1",
+      "cpu": 512,
+      "memory": 1536,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DATABASE_URL",
+          "value": "postgresql://trusted360:%23~%21%5DdN%5BEYGGrrUv%21sivs1gj%24O~bL@{DB_ENDPOINT}:5432/postgres"
+        },
+        {
+          "name": "SKIP_MIGRATIONS",
+          "value": "true"
+        },
+        {
+          "name": "DB_USERNAME",
+          "value": "trusted360"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "{JWT_SECRET}"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "{NODE_ENV}"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "postgres"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "{DB_ENDPOINT}"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "#~!]dN[EYGGrrUv!sivs1gj$O~bL"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-{ENVIRONMENT}",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    },
+    {
+      "name": "trusted360-dashboard",
+      "image": "119268833526.dkr.ecr.us-east-2.amazonaws.com/trusted360:dashboard-rollback-v1",
+      "cpu": 512,
+      "memory": 512,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "VITE_API_BASE_URL",
+          "value": "{ALB_DNS_NAME}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/trusted360-{ENVIRONMENT}",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "dashboard"
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 const express = require('express');
 const { knex: db } = require('../../database');
-const { redisClient } = require('../../services/redis');
 const logger = require('../../utils/logger');
 
 const router = express.Router();
@@ -15,7 +14,6 @@ router.get('/', async (req, res) => {
     const healthMetrics = {
       database: await getDatabaseHealth(),
       api: getApiHealth(),
-      redis: await getRedisHealth(),
       system: getSystemHealth()
     };
 
@@ -54,10 +52,51 @@ async function getDatabaseHealth() {
       connectionCount = 1;
     }
 
+    // Verify critical tables exist (indicating successful migrations)
+    const criticalTables = [
+      'users', 'sessions', 'user_activities', 'password_reset_tokens',
+      'properties', 'property_types', 'checklist_templates', 'checklist_instances',
+      'video_alerts', 'video_analysis_events', 'chat_conversations'
+    ];
+    
+    const tableChecks = {};
+    let missingTables = [];
+    
+    for (const tableName of criticalTables) {
+      try {
+        const exists = await db.schema.hasTable(tableName);
+        tableChecks[tableName] = exists;
+        if (!exists) {
+          missingTables.push(tableName);
+        }
+      } catch (error) {
+        tableChecks[tableName] = false;
+        missingTables.push(tableName);
+        logger.warn(`Could not check table ${tableName}: ${error.message}`);
+      }
+    }
+
+    // Determine overall status
+    let status = 'healthy';
+    if (missingTables.length > 0) {
+      status = 'warning'; // Tables missing indicates incomplete migration
+      logger.warn(`Missing database tables: ${missingTables.join(', ')}`);
+    } else if (responseTime >= 5000) {
+      status = 'error';
+    } else if (responseTime >= 1000) {
+      status = 'warning';
+    }
+
     return {
-      status: responseTime < 1000 ? 'healthy' : (responseTime < 5000 ? 'warning' : 'error'),
+      status,
       connectionCount,
       responseTime,
+      tables: {
+        total: criticalTables.length,
+        present: criticalTables.length - missingTables.length,
+        missing: missingTables,
+        checks: tableChecks
+      },
       lastChecked: new Date()
     };
 
@@ -90,67 +129,6 @@ function getApiHealth() {
   };
 }
 
-/**
- * Get Redis health metrics
- */
-async function getRedisHealth() {
-  try {
-    const startTime = Date.now();
-    
-    // Test Redis connection
-    if (!redisClient) {
-      return {
-        status: 'error',
-        memoryUsage: 0,
-        connectedClients: 0,
-        lastChecked: new Date(),
-        error: 'Redis client not available'
-      };
-    }
-
-    // Ping Redis
-    await redisClient.ping();
-    const responseTime = Date.now() - startTime;
-
-    // Get Redis info
-    let memoryUsage = 0;
-    let connectedClients = 0;
-
-    try {
-      const info = await redisClient.info('memory');
-      const memoryMatch = info.match(/used_memory:(\d+)/);
-      if (memoryMatch) {
-        memoryUsage = parseInt(memoryMatch[1]);
-      }
-
-      const clientsInfo = await redisClient.info('clients');
-      const clientsMatch = clientsInfo.match(/connected_clients:(\d+)/);
-      if (clientsMatch) {
-        connectedClients = parseInt(clientsMatch[1]);
-      }
-    } catch (infoError) {
-      // If we can't get detailed info, that's okay
-      logger.warn(`Could not get Redis info: ${infoError.message}`);
-    }
-
-    return {
-      status: responseTime < 100 ? 'healthy' : (responseTime < 500 ? 'warning' : 'error'),
-      memoryUsage,
-      connectedClients,
-      lastChecked: new Date()
-    };
-
-  } catch (error) {
-    logger.error(`Redis health check failed: ${error.message}`);
-    return {
-      status: 'error',
-      memoryUsage: 0,
-      connectedClients: 0,
-      lastChecked: new Date(),
-      error: error.message
-    };
-  }
-}
 
 /**
  * Get system health metrics

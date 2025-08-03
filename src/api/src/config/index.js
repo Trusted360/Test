@@ -1,5 +1,27 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../../../.env') });
 
+// Build DATABASE_URL from individual components for security
+function buildDatabaseUrl() {
+  // If DATABASE_URL is already set, use it (for local development)
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+  
+  // Build from individual components (for production with Secrets Manager)
+  const username = process.env.DB_USERNAME;
+  const password = process.env.DB_PASSWORD;
+  const host = process.env.DB_HOST || 'localhost';
+  const port = process.env.DB_PORT || 5432;
+  const database = process.env.DB_NAME || 'postgres';
+  
+  if (username && password && host) {
+    return `postgresql://${username}:${password}@${host}:${port}/${database}`;
+  }
+  
+  // Fallback - this will cause validation to fail if required
+  return null;
+}
+
 const config = {
   // Server configuration
   port: process.env.API_PORT || 3000,
@@ -8,16 +30,11 @@ const config = {
   
   // Database configuration
   database: {
-    url: process.env.DATABASE_URL,
+    url: buildDatabaseUrl(),
     pool: {
       min: 2,
       max: 10
     }
-  },
-  
-  // Redis configuration
-  redis: {
-    url: process.env.REDIS_URL
   },
   
   // JWT configuration
@@ -62,7 +79,6 @@ const config = {
 function validateConfig() {
   const requiredVars = [
     'database.url',
-    'redis.url',
     'jwt.secret'
   ];
   

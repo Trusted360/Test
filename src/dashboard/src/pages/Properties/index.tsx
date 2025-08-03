@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -54,6 +55,7 @@ import {
 import { ResponsiveTable, MobileCard, MobileCardRow, MobileCardActions } from '../../components/ResponsiveTable';
 
 const Properties: React.FC = () => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [properties, setProperties] = useState<PropertyWithStats[]>([]);
@@ -187,6 +189,10 @@ const Properties: React.FC = () => {
       status: 'active'
     });
     setSelectedProperty(null);
+  };
+
+  const handleViewProperty = (propertyId: number) => {
+    navigate(`/properties/${propertyId}`);
   };
 
   const getPropertyIcon = (type: string) => {
@@ -369,7 +375,11 @@ const Properties: React.FC = () => {
                   />
                   
                   <MobileCardActions>
-                    <IconButton size="medium" color="primary">
+                    <IconButton
+                      size="medium"
+                      color="primary"
+                      onClick={() => handleViewProperty(property.id)}
+                    >
                       <ViewIcon />
                     </IconButton>
                     <IconButton 
@@ -456,7 +466,10 @@ const Properties: React.FC = () => {
                 <TableCell align="center">
                   <Stack direction="row" spacing={1} justifyContent="center">
                     <Tooltip title="View Details">
-                      <IconButton size="small">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewProperty(property.id)}
+                      >
                         <ViewIcon />
                       </IconButton>
                     </Tooltip>

@@ -8,8 +8,8 @@ const bcrypt = require('bcrypt');
  */
 exports.up = async function(knex) {
   // Check if demo accounts already exist
-  const adminExists = await knex('users').where('email', 'admin@trusted360.com').first();
-  const userExists = await knex('users').where('email', 'user@trusted360.com').first();
+  const adminExists = await knex('users').where('email', 'admin@trusted360.io').first();
+  const userExists = await knex('users').where('email', 'user@trusted360.io').first();
   
   // Hash the demo password
   const hashedPassword = await bcrypt.hash('demo123', 12);
@@ -17,7 +17,7 @@ exports.up = async function(knex) {
   // Create admin account if it doesn't exist
   if (!adminExists) {
     await knex('users').insert({
-      email: 'admin@trusted360.com',
+      email: 'admin@trusted360.io',
       password: hashedPassword,
       first_name: 'Admin',
       last_name: 'User',
@@ -28,7 +28,7 @@ exports.up = async function(knex) {
       created_at: knex.fn.now(),
       updated_at: knex.fn.now()
     });
-    console.log('✅ Created admin demo account: admin@trusted360.com / demo123');
+    console.log('✅ Created admin demo account: admin@trusted360.io / demo123');
   } else {
     console.log('ℹ️  Admin demo account already exists');
   }
@@ -36,7 +36,7 @@ exports.up = async function(knex) {
   // Create user account if it doesn't exist
   if (!userExists) {
     await knex('users').insert({
-      email: 'user@trusted360.com',
+      email: 'user@trusted360.io',
       password: hashedPassword,
       first_name: 'Demo',
       last_name: 'User',
@@ -47,7 +47,7 @@ exports.up = async function(knex) {
       created_at: knex.fn.now(),
       updated_at: knex.fn.now()
     });
-    console.log('✅ Created user demo account: user@trusted360.com / demo123');
+    console.log('✅ Created user demo account: user@trusted360.io / demo123');
   } else {
     console.log('ℹ️  User demo account already exists');
   }
@@ -59,7 +59,7 @@ exports.up = async function(knex) {
  */
 exports.down = async function(knex) {
   // Remove demo accounts
-  await knex('users').where('email', 'admin@trusted360.com').del();
-  await knex('users').where('email', 'user@trusted360.com').del();
+  await knex('users').where('email', 'admin@trusted360.io').del();
+  await knex('users').where('email', 'user@trusted360.io').del();
   console.log('🗑️  Removed demo accounts');
 };

@@ -1,0 +1,14 @@
+{
+  "containerOverrides": [
+    {
+      "name": "trusted360-api",
+      "command": ["npm", "run", "migrate"],
+      "environment": [
+        {
+          "name": "SKIP_MIGRATIONS",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

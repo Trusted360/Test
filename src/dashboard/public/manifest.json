@@ -1,0 +1,143 @@
+{
+  "name": "Trusted 360 - Operations Management Platform",
+  "short_name": "Trusted360",
+  "description": "Mobile-first security audit and operations management platform for field operations",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en-US",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/Trusted360_Logo_Final_1.png",
+      "sizes": "72x72 96x96 128x128 144x144 152x152 192x192 384x384 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Trusted360_Logo_Final_1.png",
+      "sizes": "96x96 128x128 192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile-1.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Dashboard View"
+    },
+    {
+      "src": "/screenshot-mobile-2.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Checklist Interface"
+    },
+    {
+      "src": "/screenshot-desktop-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop Dashboard View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View operations dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/Trusted360_Logo_Final_1.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "New Checklist",
+      "short_name": "Checklist",
+      "description": "Create new checklist",
+      "url": "/checklists/new",
+      "icons": [
+        {
+          "src": "/Trusted360_Logo_Final_1.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Properties",
+      "short_name": "Properties",
+      "description": "Manage properties",
+      "url": "/properties",
+      "icons": [
+        {
+          "src": "/Trusted360_Logo_Final_1.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Video Analysis",
+      "short_name": "Video",
+      "description": "View video analysis",
+      "url": "/video",
+      "icons": [
+        {
+          "src": "/Trusted360_Logo_Final_1.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+trusted360app",
+      "url": "/handle?url=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/checklist-import",
+      "accept": {
+        "application/json": [".json"],
+        "text/csv": [".csv"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "photos",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "handle_links": "preferred"
+}
